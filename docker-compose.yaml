@@ -1,0 +1,17 @@
+services:
+  telescan-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telescan_api
+    ports:
+      - '8000:8000'
+    env_file:
+      - .env
+    networks:
+      - telescan_network
+
+networks:
+  telescan_network:
+    driver: bridge
+    external: true
