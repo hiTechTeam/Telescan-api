@@ -1,4 +1,4 @@
-"""Task schemas."""
+"""Response schemas."""
 
 # -- Imports
 
