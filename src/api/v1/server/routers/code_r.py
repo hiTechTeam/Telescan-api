@@ -36,4 +36,4 @@ async def get_username_by_code(payload: GetUsernameRequest = Body(...)):
     if not user or not user.tg_username:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
-    return GetUsernameByCode(tg_username=user.tg_username)
+    return GetUsernameByCode(tg_name=user.tg_name, tg_username=user.tg_username)

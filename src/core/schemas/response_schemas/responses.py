@@ -11,4 +11,5 @@ __all__ = ["GetUsernameByCode"]
 
 
 class GetUsernameByCode(BaseModel):
+    tg_name: Optional[str]
     tg_username: Optional[str]
