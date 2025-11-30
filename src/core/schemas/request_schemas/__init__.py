@@ -1,1 +1,1 @@
-from .requests import GetUsernameRequest  # noqa
+from .requests import GetUserdataRequestByHashedCode, GetUserdataRequestByTGID  # noqa

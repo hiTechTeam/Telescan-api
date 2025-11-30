@@ -1,1 +1,1 @@
-from .responses import GetUsernameByCode  # noqa
+from .responses import GetUserdataByCode, GetuserDataByTGID  # noqa

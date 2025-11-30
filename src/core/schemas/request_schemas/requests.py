@@ -7,8 +7,15 @@ from typing import Optional
 
 # -- Exports
 
-__all__ = ["GetUsernameRequest"]
+__all__ = [
+    "GetUserdataRequestByHashedCode",
+    "GetUserdataRequestByTGID",
+]
 
 
-class GetUsernameRequest(BaseModel):
+class GetUserdataRequestByHashedCode(BaseModel):
     hashed_code: Optional[str]
+
+
+class GetUserdataRequestByTGID(BaseModel):
+    tg_id: int
