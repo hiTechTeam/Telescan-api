@@ -1,1 +1,5 @@
-from .requests import GetUserdataRequestByHashedCode, GetUserdataRequestByTGID  # noqa
+from .requests import (
+    GetUserdataRequestByHashedCode,
+    GetUserdataRequestByTGID,
+    SetUserPhotoRequestByTGID,
+)  # noqa

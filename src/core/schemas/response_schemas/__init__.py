@@ -1,1 +1,6 @@
-from .responses import GetUserdataByCode, GetuserDataByTGID  # noqa
+from .responses import (
+    GetUserdataByCode,
+    GetuserDataByTGID,
+    UploadTelegramPhotoResponse,
+    DeletePhotoResponse,
+)  # noqa

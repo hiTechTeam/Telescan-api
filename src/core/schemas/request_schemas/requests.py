@@ -10,6 +10,7 @@ from typing import Optional
 __all__ = [
     "GetUserdataRequestByHashedCode",
     "GetUserdataRequestByTGID",
+    "SetUserPhotoRequestByTGID",
 ]
 
 
@@ -19,3 +20,8 @@ class GetUserdataRequestByHashedCode(BaseModel):
 
 class GetUserdataRequestByTGID(BaseModel):
     tg_id: int
+
+
+class SetUserPhotoRequestByTGID(BaseModel):
+    tg_id: int
+    img: bytes

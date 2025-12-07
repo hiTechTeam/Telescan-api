@@ -1,5 +1,6 @@
 [project]
 dependencies = [
+  "aiobotocore>=2.26.0",
   "beanie>=2.0.0",
   "dotenv>=0.9.9",
   "fastapi>=0.121.1",
