@@ -12,6 +12,7 @@ class S3Client:
         access_key: str,
         secret_key: str,
         endpoint_url: str,
+        public_base_url: str,
         bucket_name: str,
     ) -> None:
         self.config = {
@@ -19,6 +20,7 @@ class S3Client:
             "aws_secret_access_key": secret_key,
             "endpoint_url": endpoint_url,
         }
+        self.public_base_url = public_base_url.rstrip("/")
         self.bucket_name = bucket_name
         self.session = get_session()
 
@@ -40,9 +42,10 @@ class S3Client:
                 Key=object_name,
                 Body=file_bytes,
                 ContentType=content_type,
+                ACL="public-read",
             )  # type: ignore
 
-        return f"{self.config['endpoint_url'].rstrip('/')}/{self.bucket_name}/{object_name}"
+        return f"{self.public_base_url}/{object_name}"
 
     async def upload_photo(self, img: bytes, object_name: str) -> Optional[str]:
 
@@ -51,7 +54,3 @@ class S3Client:
             object_name=object_name,
             content_type="image/jpeg",
         )
-
-    async def delete_photo(self, object_name: str) -> None:
-        async with self.get_client() as client:
-            await client.delete_object(Bucket=self.bucket_name, Key=object_name)  # type: ignore
