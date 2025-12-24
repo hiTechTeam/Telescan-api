@@ -91,7 +91,7 @@ async def upload_telegram_photo_handler(
     Upload user photo to S3 and update user record.
     """
 
-    tg_id = payload.tg_id
+    tg_id = payload.tgId
     img = payload.img
 
     # Validate user exists
@@ -128,7 +128,7 @@ async def upload_telegram_photo_handler(
 )
 async def update_telegram_photo(payload: UpdateUserPhotoRequestByTGID):
 
-    user = await User.find_one(User.tg_id == payload.tg_id)
+    user = await User.find_one(User.tg_id == payload.tgId)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -146,7 +146,7 @@ async def update_telegram_photo(payload: UpdateUserPhotoRequestByTGID):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid base64 image")
 
-    object_name = f"{payload.tg_id}.jpg"
+    object_name = f"{payload.tgId}.jpg"
 
     photo_url = await s.s3_client.upload_photo(
         img=img_bytes,

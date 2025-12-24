@@ -20,14 +20,14 @@ class GetUserdataRequestByHashedCode(BaseModel):
 
 
 class GetUserdataRequestByTGID(BaseModel):
-    tg_id: int
+    tgId: int
 
 
 class SetUserPhotoRequestByTGID(BaseModel):
-    tg_id: int
+    tgId: int
     img: bytes
 
 
 class UpdateUserPhotoRequestByTGID(BaseModel):
-    tg_id: int
+    tgId: int
     img: Optional[str] = None
