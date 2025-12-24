@@ -16,23 +16,23 @@ __all__ = [
 
 
 class GetUserdataByCode(BaseModel):
-    tg_id: int
-    tg_name: Optional[str]
-    tg_username: Optional[str]
+    tgId: int
+    tgName: Optional[str]
+    tgUsername: Optional[str]
     photoS3URL: Optional[str]
 
 
 class GetuserDataByTGID(BaseModel):
-    tg_name: Optional[str]
-    tg_username: Optional[str]
+    tgName: Optional[str]
+    tgUsername: Optional[str]
     photoS3URL: Optional[str]
 
 
 class UploadTelegramPhotoResponse(BaseModel):
-    tg_id: int
+    tgId: int
     photoS3URL: Optional[str] = None
 
 
 class DeletePhotoResponse(BaseModel):
-    tg_id: int
+    tgId: int
     deleted: bool

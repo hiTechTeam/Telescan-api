@@ -19,6 +19,7 @@ class S3Client:
             "aws_access_key_id": access_key,
             "aws_secret_access_key": secret_key,
             "endpoint_url": endpoint_url,
+            "verify": False,
         }
         self.public_base_url = public_base_url.rstrip("/")
         self.bucket_name = bucket_name

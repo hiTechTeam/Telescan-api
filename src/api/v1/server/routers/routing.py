@@ -3,11 +3,13 @@
 # -- Imports
 
 import logging
+import base64
 from fastapi import APIRouter, status, HTTPException
 from fastapi import Body
 from src.core.config import settings
 from src.core.schemas.request_schemas import (
     SetUserPhotoRequestByTGID,
+    UpdateUserPhotoRequestByTGID,
 )
 from src.core.schemas.response_schemas import (
     GetUserdataByCode,
@@ -48,9 +50,9 @@ async def get_userdata_by_code(hashed_code: str):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
     return GetUserdataByCode(
-        tg_id=user.tg_id,
-        tg_name=user.tg_name,
-        tg_username=user.tg_username,
+        tgId=user.tg_id,
+        tgName=user.tg_name,
+        tgUsername=user.tg_username,
         photoS3URL=user.photo_s3_link,
     )
 
@@ -70,8 +72,8 @@ async def get_userdata_by_tg_id(tg_id: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
     return GetuserDataByTGID(
-        tg_name=user.tg_name,
-        tg_username=user.tg_username,
+        tgName=user.tg_name,
+        tgUsername=user.tg_username,
         photoS3URL=user.photo_s3_link,
     )
 
@@ -114,6 +116,47 @@ async def upload_telegram_photo_handler(
     await user.save()
 
     return UploadTelegramPhotoResponse(
-        tg_id=tg_id,
+        tgId=tg_id,
+        photoS3URL=photo_url,
+    )
+
+
+@users_router.post(
+    path="/update-photo",
+    status_code=status.HTTP_200_OK,
+    response_model=UploadTelegramPhotoResponse,
+)
+async def update_telegram_photo(payload: UpdateUserPhotoRequestByTGID):
+
+    user = await User.find_one(User.tg_id == payload.tg_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if payload.img is None:
+        user.photo_s3_link = None
+        await user.save()
+
+        return UploadTelegramPhotoResponse(
+            tgId=user.tg_id,
+            photoS3URL=None,
+        )
+
+    try:
+        img_bytes = base64.b64decode(payload.img)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid base64 image")
+
+    object_name = f"{payload.tg_id}.jpg"
+
+    photo_url = await s.s3_client.upload_photo(
+        img=img_bytes,
+        object_name=object_name,
+    )
+
+    user.photo_s3_link = photo_url
+    await user.save()
+
+    return UploadTelegramPhotoResponse(
+        tgId=user.tg_id,
         photoS3URL=photo_url,
     )

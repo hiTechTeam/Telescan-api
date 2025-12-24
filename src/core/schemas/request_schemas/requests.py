@@ -11,6 +11,7 @@ __all__ = [
     "GetUserdataRequestByHashedCode",
     "GetUserdataRequestByTGID",
     "SetUserPhotoRequestByTGID",
+    "UpdateUserPhotoRequestByTGID",
 ]
 
 
@@ -25,3 +26,8 @@ class GetUserdataRequestByTGID(BaseModel):
 class SetUserPhotoRequestByTGID(BaseModel):
     tg_id: int
     img: bytes
+
+
+class UpdateUserPhotoRequestByTGID(BaseModel):
+    tg_id: int
+    img: Optional[str] = None
