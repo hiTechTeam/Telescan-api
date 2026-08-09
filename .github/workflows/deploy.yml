@@ -1,0 +1,68 @@
+name: Deploy Telescan API
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-telescan-api
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build --tag telescan-api:ci .
+
+  deploy:
+    name: Deploy to production
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Deploy API
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" <<'REMOTE'
+          set -Eeuo pipefail
+          cd /home/ubuntu/telescan/Telescan-api
+          test -z "$(git status --porcelain)"
+          git fetch origin main
+          git merge --ff-only origin/main
+          docker compose config --quiet
+          docker compose up -d --build --no-deps telescan-api
+          for attempt in {1..12}; do
+            if docker compose ps --status running --services | grep -Fxq telescan-api; then
+              docker compose ps telescan-api
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose ps telescan-api
+          docker compose logs --tail=100 telescan-api
+          exit 1
+          REMOTE
