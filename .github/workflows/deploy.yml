@@ -56,13 +56,12 @@ jobs:
           docker compose config --quiet
           docker compose up -d --build --no-deps telescan-api
           for attempt in {1..12}; do
-            if docker compose ps --status running --services | grep -Fxq telescan-api; then
-              docker compose ps telescan-api
-              exit 0
+            RUNNING_SERVICE="$(docker compose ps --status running --services telescan-api)"
+            if [ "$RUNNING_SERVICE" = "telescan-api" ]; then
+              break
             fi
             sleep 5
           done
           docker compose ps telescan-api
-          docker compose logs --tail=100 telescan-api
-          exit 1
+          test "$(docker compose ps --status running --services telescan-api)" = "telescan-api"
           REMOTE
