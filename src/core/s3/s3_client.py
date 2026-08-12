@@ -74,10 +74,68 @@ class S3Client:
                 Key=object_name,
             )
 
-    async def delete_by_public_url(
+    async def delete_files(
+        self,
+        object_names: list[str],
+    ) -> None:
+        unique_names = list(dict.fromkeys(object_names))
+
+        if not unique_names:
+            return
+
+        async with self.get_client() as client:
+            for start in range(0, len(unique_names), 1000):
+                batch = unique_names[start : start + 1000]
+                response = await client.delete_objects(
+                    Bucket=self.bucket_name,
+                    Delete={
+                        "Objects": [{"Key": name} for name in batch],
+                        "Quiet": True,
+                    },
+                )
+
+                errors = response.get("Errors", [])
+                if errors:
+                    raise RuntimeError(
+                        f"Failed to delete S3 objects: {errors}"
+                    )
+
+    async def delete_prefix(
+        self,
+        prefix: str,
+    ) -> None:
+        object_names: list[str] = []
+        continuation_token: str | None = None
+
+        async with self.get_client() as client:
+            while True:
+                request: dict[str, Any] = {
+                    "Bucket": self.bucket_name,
+                    "Prefix": prefix,
+                }
+                if continuation_token:
+                    request["ContinuationToken"] = continuation_token
+
+                response = await client.list_objects_v2(**request)
+                object_names.extend(
+                    item["Key"] for item in response.get("Contents", [])
+                )
+
+                if not response.get("IsTruncated"):
+                    break
+
+                continuation_token = response.get("NextContinuationToken")
+                if not continuation_token:
+                    raise RuntimeError(
+                        "S3 response is truncated without a continuation token"
+                    )
+
+        await self.delete_files(object_names)
+
+    def object_name_from_public_url(
         self,
         public_url: str,
-    ) -> None:
+    ) -> str:
         prefix = f"{self.public_base_url}/"
 
         if not public_url.startswith(prefix):
@@ -88,4 +146,11 @@ class S3Client:
         if not object_name:
             raise ValueError("S3 object name is empty")
 
+        return object_name
+
+    async def delete_by_public_url(
+        self,
+        public_url: str,
+    ) -> None:
+        object_name = self.object_name_from_public_url(public_url)
         await self.delete_file(object_name)

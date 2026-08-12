@@ -3,4 +3,5 @@ from .requests import (
     GetUserdataRequestByTGID,
     SetUserPhotoRequestByTGID,
     UpdateUserPhotoRequestByTGID,
+    DeleteUserAccountRequest,
 )  # noqa

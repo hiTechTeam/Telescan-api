@@ -3,14 +3,16 @@
 import base64
 import binascii
 import logging
+import secrets
 from uuid import uuid4
 
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, Body, HTTPException, Response, status
 
 from src.core.config import settings
 from src.core.config import settings as s
 from src.core.db.models import User
 from src.core.schemas.request_schemas import (
+    DeleteUserAccountRequest,
     SetUserPhotoRequestByTGID,
     UpdateUserPhotoRequestByTGID,
 )
@@ -131,6 +133,26 @@ async def delete_user_photo(user: User) -> None:
                 "Failed to delete profile photo from S3 for user %s",
                 user.tg_id,
             )
+
+
+async def delete_all_user_photos(user: User) -> None:
+    object_names = [f"{user.tg_id}.jpg"]
+
+    if user.photo_s3_link:
+        try:
+            object_names.append(
+                s.s3_client.object_name_from_public_url(
+                    user.photo_s3_link
+                )
+            )
+        except ValueError:
+            log.warning(
+                "Ignoring an external photo URL for user %s",
+                user.tg_id,
+            )
+
+    await s.s3_client.delete_files(object_names)
+    await s.s3_client.delete_prefix(f"users/{user.tg_id}/")
 
 
 @code_router.get(
@@ -255,3 +277,55 @@ async def update_telegram_photo(
         tgId=user.tg_id,
         photoS3URL=photo_url,
     )
+
+
+@users_router.delete(
+    path="/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    name="delete-user-account",
+)
+async def delete_user_account(
+    payload: DeleteUserAccountRequest,
+) -> Response:
+    user = await User.find_one(User.tg_id == payload.tgId)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if not user.code or not secrets.compare_digest(
+        user.code,
+        payload.hashedCode,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid account credentials",
+        )
+
+    try:
+        await delete_all_user_photos(user)
+    except Exception as error:
+        log.exception(
+            "Failed to delete stored files for user %s",
+            user.tg_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete account data",
+        ) from error
+
+    try:
+        await user.delete()
+    except Exception as error:
+        log.exception(
+            "Failed to delete database record for user %s",
+            user.tg_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete account",
+        ) from error
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
