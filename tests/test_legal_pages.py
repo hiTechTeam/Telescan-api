@@ -34,7 +34,9 @@ async def test_privacy_page_is_public_html() -> None:
     assert "Privacy Policy" in body
     assert "Account and data deletion" in body
     assert "https://tgtelescan.ru/privacy" in body
-    assert 'src="/public/tsicon66.png"' in body
+    assert '<span class="brand">Telescan</span>' in body
+    assert '<a class="brand"' not in body
+    assert 'class="mark"' not in body
     assert "Your data, clearly explained" not in body
     assert "img-src 'self' data:" in response.headers["content-security-policy"]
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
@@ -50,6 +52,9 @@ async def test_terms_page_supports_russian_query() -> None:
     assert '<html lang="ru">' in body
     assert "Условия использования" in body
     assert "/privacy?lang=ru" in body
+    assert "Правила использования Telescan" not in body
+    assert '<a class="brand"' not in body
+    assert 'class="mark"' not in body
 
 
 @pytest.mark.asyncio
@@ -62,6 +67,7 @@ async def test_accept_language_selects_supported_language() -> None:
 
     assert response.headers["content-language"] == "ru"
     assert "Политика конфиденциальности" in body
+    assert "Понятно о ваших данных" not in body
 
 
 def test_language_quality_is_respected() -> None:

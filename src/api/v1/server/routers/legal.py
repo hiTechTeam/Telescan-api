@@ -466,10 +466,7 @@ def render_page(kind: str, language: str) -> str:
     .shell {{ position:relative; width:min(100% - 32px,900px); margin:auto; }}
     header {{ padding:22px 0 10px; }}
     nav {{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }}
-    .brand {{ display:flex; align-items:center; gap:10px; margin-right:auto;
-      color:var(--ink); font-weight:750; font-size:18px; text-decoration:none; }}
-    .mark {{ display:block; width:38px; height:38px; object-fit:contain;
-      filter:drop-shadow(0 8px 14px rgba(10,132,255,.28)); }}
+    .brand {{ margin-right:auto; color:var(--ink); font-weight:750; font-size:18px; }}
     .nav-link,.language {{ padding:7px 11px; border:1px solid var(--line);
       border-radius:999px; color:var(--muted); background:var(--card);
       text-decoration:none; font-size:13px; font-weight:650; backdrop-filter:blur(16px); }}
@@ -508,9 +505,7 @@ def render_page(kind: str, language: str) -> str:
 <body>
   <div class="shell">
     <header><nav aria-label="Legal documents">
-      <a class="brand" href="https://tgtelescan.ru/">
-        <img class="mark" src="/public/tsicon66.png" alt="">Telescan
-      </a>
+      <span class="brand">Telescan</span>
       <a class="nav-link" aria-current="page" href="/{kind}?lang={language}">{current_label}</a>
       <a class="nav-link" href="/{other_kind}?lang={language}">{other_label}</a>
       <a class="language" href="/{kind}?lang={opposite_language}" hreflang="{opposite_language}">{language_name}</a>
