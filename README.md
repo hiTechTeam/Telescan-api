@@ -58,3 +58,5 @@ make api-up
 ## Links
 
 [iOS app](https://github.com/hiTechTeam/Telescan-iOS) · [Project documentation](https://github.com/hiTechTeam/Telescan-info) · [Developer](https://github.com/r66cha)
+
+Licensed under the [MIT License](LICENSE).
