@@ -2,6 +2,11 @@
 
 FastAPI backend for [Telescan](https://github.com/hiTechTeam/Telescan-info). It resolves Telegram profiles by code or ID, manages profile photos in S3-compatible storage, and permanently deletes account data.
 
+Public legal pages are served from the production domain with automatic English/Russian language selection:
+
+- `https://telescan.space/privacy`
+- `https://telescan.space/terms`
+
 ## API
 
 Interactive documentation is available at `/docs` while the server is running.
