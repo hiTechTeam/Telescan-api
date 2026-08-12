@@ -1,219 +1,60 @@
 # Telescan API
 
-Backend REST API for the application [Telescan-iOS](https://github.com/hiTechTeam/Telescan-iOS)
+FastAPI backend for [Telescan](https://github.com/hiTechTeam/Telescan-info). It resolves Telegram profiles by code or ID, manages profile photos in S3-compatible storage, and permanently deletes account data.
 
-The API is responsible for:
+## API
 
-- Validation and binding of authentication codes from the Telegram bot
-- Storage and release of Telegram profile data
-- Update user avatars
-- Safe work with hashed codes
+Interactive documentation is available at `/docs` while the server is running.
 
-## Base URL
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/code/?hashed_code={sha256}` | Get a profile by hashed bot code |
+| `GET` | `/v1/users/?tg_id={id}` | Get a profile by Telegram ID |
+| `POST` | `/v1/users/upload-photo` | Upload a Base64-encoded profile photo |
+| `POST` | `/v1/users/update-photo` | Replace a photo, or delete it when `img` is `null` |
+| `DELETE` | `/v1/users/` | Delete the profile and all stored photos |
 
-The development uses a tunnel (for example, Pinggy).
-
-## Endpoints
-
-### GET /v1/code
-
-Get profile data using hashed code.
-
-**Query parameters**
-
-- `hashed_code` — SHA-256 hash of the 8-character code from the bot (required)
-
-**Response (200 OK)**
+Photo requests use `{"tgId": 123, "img": "base64..."}`. Account deletion uses the Telegram ID and SHA-256 code hash:
 
 ```json
 {
   "tgId": 123456789,
-  "tgName": "Ivan Ivanov",
-  "tgUsername": "ivan_rockets",
-  "photoS3URL": "https://s3.amazonaws.com/.../photo.jpg"
+  "hashedCode": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 }
 ```
 
-**Response (404 Not Found)**
+A successful deletion returns `204 No Content`. The main profile response fields are `tgId`, `tgName`, `tgUsername`, and `photoS3URL`.
 
-```json
-{
-  "detail": "Not Found"
-}
+## Run locally
+
+Requires Python 3.13+, [uv](https://docs.astral.sh/uv/), MongoDB, and S3-compatible storage.
+
+Create `.env`:
+
+```dotenv
+MONGO_USERNAME=
+MONGO_PASSWORD=
+MONGO_HOST=
+MONGO_PORT=27017
+MONGO_DBNAME=
+TelescanS3AccessKey=
+TelescanS3SecretKey=
 ```
 
-### GET /v1/users
+Then start the API:
 
-Get profile data by Telegram ID.
-
-**Query parameters**
-
-- `tg_id` — Telegram user ID (required)
-
-**Response (200 OK)**
-
-```json
-{
-  "tgName": "Ivan Ivanov",
-  "tgUsername": "ivan_rockets",
-  "photoS3URL": "https://s3.amazonaws.com/.../photo.jpg"
-}
+```sh
+uv sync
+make run
 ```
 
-**Response (404 Not Found)**
+The server listens on `http://localhost:8000`. To use Docker, first create the shared network once, then run the service:
 
-```json
-{
-  "detail": "Not Found"
-}
-```
-
-### POST /v1/users/upload-photo
-
-Upload the user's photo to S3 and update the user's record.
-
-**Request body**
-
-```json
-{
-  "tgId": 123456789,
-  "img": "base64-encoded-image-data"
-}
-```
-
-**Response (200 OK)**
-
-```json
-{
-  "tgId": 123456789,
-  "photoS3URL": "https://b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru/123456789.jpg"
-}
-```
-
-**Response (404 Not Found)**
-
-```json
-{
-  "detail": "Not Found"
-}
-```
-
-**Response (500 Internal Server Error)**
-
-```json
-{
-  "detail": "Failed to download or upload photo"
-}
-```
-
-### POST /v1/users/update-photo
-
-Update user photo. If `img` is `null`, the photo will be deleted.
-
-**Request body**
-
-```json
-{
-  "tgId": 123456789,
-  "img": "base64-encoded-image-data"
-}
-```
-
-Or to delete a photo:
-
-```json
-{
-  "tgId": 123456789,
-  "img": null
-}
-```
-
-**Response (200 OK)**
-
-```json
-{
-  "tgId": 123456789,
-  "photoS3URL": "https://b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru/123456789.jpg"
-}
-```
-
-Or when deleting:
-
-```json
-{
-  "tgId": 123456789,
-  "photoS3URL": null
-}
-```
-
-**Response (404 Not Found)**
-
-```json
-{
-  "detail": "User not found"
-}
-```
-
-**Response (400 Bad Request)**
-
-```json
-{
-  "detail": "Invalid base64 image"
-}
-```
-
-## Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/hiTechTeam/Telescan-api.git
-   cd Telescan-api
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   uv sync
-   ```
-
-The server will be available at `http://localhost:8000`.
-
-### Running with Docker
-
-```bash
+```sh
+docker network create telescan_network
 make api-up
 ```
 
-Or:
+## Links
 
-```bash
-docker compose up --build -d
-```
-
-## Environment variables
-
-Create a `.env` file in the project root with the following variables:
-
-- `TelescanS3AccessKey` - S3 access key
-- `TelescanS3SecretKey` - Secret key for S3
-- MongoDB connection data
-
-## Development and contributions
-
-The project is open for contributions. If you want to help:
-
-- Fork the repository
-- Create a thread describing the change
-- Open Pull Request
-
-Especially useful:
-
-- Improved bot interface
-- Adding localizations
-- Testing and searching for bugs
-
-## Contacts
-
-- Developer: [r66cha](https://github.com/r66cha)
-- Documentation and roadmap: https://github.com/hiTechTeam/Telescan-info
+[iOS app](https://github.com/hiTechTeam/Telescan-iOS) · [Project documentation](https://github.com/hiTechTeam/Telescan-info) · [Developer](https://github.com/r66cha)
