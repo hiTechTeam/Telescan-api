@@ -33,7 +33,10 @@ async def test_privacy_page_is_public_html() -> None:
     assert response.headers["content-language"] == "en"
     assert "Privacy Policy" in body
     assert "Account and data deletion" in body
-    assert "https://telescan.space/privacy" in body
+    assert "https://tgtelescan.ru/privacy" in body
+    assert 'src="/public/tsicon66.png"' in body
+    assert "Your data, clearly explained" not in body
+    assert "img-src 'self' data:" in response.headers["content-security-policy"]
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
 
 

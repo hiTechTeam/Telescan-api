@@ -12,7 +12,6 @@ __all__ = ["legal_router"]
 @dataclass(frozen=True)
 class LegalDocument:
     title: str
-    eyebrow: str
     summary: str
     effective_date: str
     sections: tuple[tuple[str, str], ...]
@@ -22,7 +21,6 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
     "privacy": {
         "en": LegalDocument(
             title="Privacy Policy",
-            eyebrow="Your data, clearly explained",
             summary=(
                 "How Telescan processes account, profile-photo, and nearby "
                 "discovery data — and how you stay in control."
@@ -118,7 +116,6 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
         ),
         "ru": LegalDocument(
             title="Политика конфиденциальности",
-            eyebrow="Понятно о ваших данных",
             summary=(
                 "Как Telescan обрабатывает данные аккаунта, фотографии и "
                 "поиска людей рядом — и как вы ими управляете."
@@ -217,7 +214,6 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
     "terms": {
         "en": LegalDocument(
             title="Terms of Service",
-            eyebrow="Rules for using Telescan",
             summary=(
                 "The essential terms for using the Telescan app, bot, API, "
                 "and related services."
@@ -307,7 +303,6 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
         ),
         "ru": LegalDocument(
             title="Условия использования",
-            eyebrow="Правила использования Telescan",
             summary=(
                 "Основные условия использования приложения Telescan, бота, "
                 "API и связанных сервисов."
@@ -454,7 +449,7 @@ def render_page(kind: str, language: str) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a84ff">
   <meta name="description" content="{escape(document.summary)}">
-  <link rel="canonical" href="https://telescan.space/{kind}">
+  <link rel="canonical" href="https://tgtelescan.ru/{kind}">
   <title>{escape(document.title)} · Telescan</title>
   <style>
     :root {{ color-scheme: light dark; --brand:#0a84ff; --ink:#102033;
@@ -473,16 +468,13 @@ def render_page(kind: str, language: str) -> str:
     nav {{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }}
     .brand {{ display:flex; align-items:center; gap:10px; margin-right:auto;
       color:var(--ink); font-weight:750; font-size:18px; text-decoration:none; }}
-    .mark {{ display:grid; place-items:center; width:36px; height:36px; border-radius:11px;
-      color:#fff; background:linear-gradient(145deg,#52afff,#087cf0 60%,#0755a8);
-      box-shadow:0 8px 22px rgba(10,132,255,.3); font-size:20px; }}
+    .mark {{ display:block; width:38px; height:38px; object-fit:contain;
+      filter:drop-shadow(0 8px 14px rgba(10,132,255,.28)); }}
     .nav-link,.language {{ padding:7px 11px; border:1px solid var(--line);
       border-radius:999px; color:var(--muted); background:var(--card);
       text-decoration:none; font-size:13px; font-weight:650; backdrop-filter:blur(16px); }}
     .nav-link[aria-current="page"] {{ color:#fff; border-color:var(--brand); background:var(--brand); }}
     .hero {{ padding:70px 0 42px; text-align:center; }}
-    .eyebrow {{ margin:0 0 12px; color:var(--brand); font-size:13px; font-weight:800;
-      letter-spacing:.09em; text-transform:uppercase; }}
     h1 {{ max-width:760px; margin:0 auto; font-size:clamp(40px,8vw,68px); line-height:1.02;
       letter-spacing:-.05em; }}
     .summary {{ max-width:650px; margin:22px auto 16px; color:var(--muted);
@@ -516,14 +508,16 @@ def render_page(kind: str, language: str) -> str:
 <body>
   <div class="shell">
     <header><nav aria-label="Legal documents">
-      <a class="brand" href="https://telescan.space"><span class="mark">⌁</span>Telescan</a>
+      <a class="brand" href="https://tgtelescan.ru/">
+        <img class="mark" src="/public/tsicon66.png" alt="">Telescan
+      </a>
       <a class="nav-link" aria-current="page" href="/{kind}?lang={language}">{current_label}</a>
       <a class="nav-link" href="/{other_kind}?lang={language}">{other_label}</a>
       <a class="language" href="/{kind}?lang={opposite_language}" hreflang="{opposite_language}">{language_name}</a>
     </nav></header>
     <main>
-      <div class="hero"><p class="eyebrow">{escape(document.eyebrow)}</p>
-        <h1>{escape(document.title)}</h1><p class="summary">{escape(document.summary)}</p>
+      <div class="hero"><h1>{escape(document.title)}</h1>
+        <p class="summary">{escape(document.summary)}</p>
         <span class="date">{escape(document.effective_date)}</span></div>
       <article>{sections}</article>
     </main>
@@ -544,7 +538,7 @@ def page_response(kind: str, language: str) -> HTMLResponse:
             "Content-Language": language,
             "Content-Security-Policy": (
                 "default-src 'none'; style-src 'unsafe-inline'; "
-                "img-src data:; base-uri 'none'; form-action 'none'; "
+                "img-src 'self' data:; base-uri 'none'; form-action 'none'; "
                 "frame-ancestors 'none'"
             ),
             "Referrer-Policy": "strict-origin-when-cross-origin",

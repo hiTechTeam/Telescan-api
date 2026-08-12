@@ -4,8 +4,8 @@ FastAPI backend for [Telescan](https://github.com/hiTechTeam/Telescan-info). It 
 
 Public legal pages are served from the production domain with automatic English/Russian language selection:
 
-- `https://telescan.space/privacy`
-- `https://telescan.space/terms`
+- `https://tgtelescan.ru/privacy`
+- `https://tgtelescan.ru/terms`
 
 ## API
 

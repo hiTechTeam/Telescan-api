@@ -4,9 +4,11 @@
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from fastapi.staticfiles import StaticFiles
 from beanie import init_beanie
 from src.core.config import settings as s
 from src.api.v1.server.routers import main_router
@@ -45,6 +47,13 @@ app = FastAPI(
 )
 
 app.include_router(main_router)
+
+public_directory = Path(__file__).resolve().parents[4] / "public"
+app.mount(
+    "/public",
+    StaticFiles(directory=public_directory),
+    name="public",
+)
 
 app.add_middleware(
     middleware_class=CORSMiddleware,
