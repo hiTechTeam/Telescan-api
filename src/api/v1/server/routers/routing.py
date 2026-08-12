@@ -141,9 +141,7 @@ async def delete_all_user_photos(user: User) -> None:
     if user.photo_s3_link:
         try:
             object_names.append(
-                s.s3_client.object_name_from_public_url(
-                    user.photo_s3_link
-                )
+                s.s3_client.object_name_from_public_url(user.photo_s3_link)
             )
         except ValueError:
             log.warning(
