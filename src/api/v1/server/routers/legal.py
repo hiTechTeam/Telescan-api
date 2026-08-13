@@ -110,7 +110,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>We may update this policy when the service or legal "
                     "requirements change. The effective date identifies the "
                     "current version.</p><p>Privacy questions: "
-                    "<a href=\"mailto:r66cha@gmail.com\">r66cha@gmail.com</a>.</p>",
+                    "<a href=\"mailto:admin@tgtelescan.ru\">"
+                    "admin@tgtelescan.ru</a>.</p>",
                 ),
             ),
         ),
@@ -206,7 +207,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Мы можем обновлять политику при изменении сервиса или "
                     "правовых требований. Дата вступления в силу обозначает "
                     "текущую версию.</p><p>Вопросы о конфиденциальности: "
-                    "<a href=\"mailto:r66cha@gmail.com\">r66cha@gmail.com</a>.</p>",
+                    "<a href=\"mailto:admin@tgtelescan.ru\">"
+                    "admin@tgtelescan.ru</a>.</p>",
                 ),
             ),
         ),
@@ -296,8 +298,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>We may update these Terms when the service or legal "
                     "requirements change. Material changes will be presented "
                     "through an appropriate service or documentation update.</p>"
-                    "<p>Questions: <a href=\"mailto:r66cha@gmail.com\">"
-                    "r66cha@gmail.com</a>.</p>",
+                    "<p>Questions: <a href=\"mailto:admin@tgtelescan.ru\">"
+                    "admin@tgtelescan.ru</a>.</p>",
                 ),
             ),
         ),
@@ -386,7 +388,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Мы можем обновлять Условия при изменении сервиса или "
                     "правовых требований. О существенных изменениях будет "
                     "сообщено через сервис или документацию.</p><p>Вопросы: "
-                    "<a href=\"mailto:r66cha@gmail.com\">r66cha@gmail.com</a>.</p>",
+                    "<a href=\"mailto:admin@tgtelescan.ru\">"
+                    "admin@tgtelescan.ru</a>.</p>",
                 ),
             ),
         ),
@@ -518,7 +521,7 @@ def render_page(kind: str, language: str) -> str:
     </main>
     <footer><span>© 2026 Telescan</span><span>
       <a href="/{other_kind}?lang={language}">{escape(other_document.title)}</a> ·
-      <a href="mailto:r66cha@gmail.com">Contact</a></span></footer>
+      <a href="mailto:admin@tgtelescan.ru">Contact</a></span></footer>
   </div>
 </body>
 </html>"""
