@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+import os
+import ssl
 from typing import Any, AsyncIterator
 from urllib.parse import unquote, urlparse
 from uuid import UUID
@@ -20,6 +22,11 @@ class S3PhotoStorage:
             "aws_secret_access_key": secret_key,
             "endpoint_url": endpoint_url,
         }
+        ca_bundle = os.environ.get("AWS_CA_BUNDLE")
+        if ca_bundle is None:
+            ca_bundle = ssl.get_default_verify_paths().cafile
+        if ca_bundle:
+            self._client_config["verify"] = ca_bundle
         self._session = get_session()
         self._public_base_url = public_base_url.rstrip("/")
         self._bucket_name = bucket_name

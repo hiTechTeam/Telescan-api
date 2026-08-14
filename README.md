@@ -48,6 +48,8 @@ minutes, is consumed atomically, and can be used only once.
 
 Copying the optional Telegram profile photo is best effort: an S3 outage is
 logged but does not prevent the API from issuing the one-time link code.
+The S3 client validates TLS with `AWS_CA_BUNDLE` when set, otherwise with the
+operating system's trusted CA bundle.
 
 The iOS app submits the clear code with a random installation `device_id`.
 Successful linking creates or replaces that device's session and returns:
