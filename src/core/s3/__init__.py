@@ -1,1 +1,1 @@
-from .s3_client import S3Client  # noqa
+"""Deprecated package; S3 now lives in infrastructure.s3."""

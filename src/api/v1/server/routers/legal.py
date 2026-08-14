@@ -38,22 +38,23 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Data we process",
                     "<p>When you register through the Telescan Telegram bot, "
                     "we receive your Telegram ID, first name, username, and "
-                    "current public profile photo. The bot generates an "
-                    "eight-character authentication code and stores only its "
-                    "SHA-256 hash on the server. The original code may be "
-                    "stored locally by the iOS app.</p>"
+                    "current public profile photo. At your request, the API "
+                    "issues a short-lived, one-time linking code. Only a "
+                    "keyed hash of that code is stored until it is used or "
+                    "expires; the iOS app does not retain the code.</p>"
                     "<p>If you choose another profile photo, Telescan accesses "
                     "only the image selected through the camera or system photo "
                     "picker. The app resizes and compresses it before uploading "
                     "a copy to Telescan cloud storage.</p>"
                     "<ul><li>Telegram ID, first name, and username</li>"
-                    "<li>Hashed authentication code</li>"
+                    "<li>Random Telescan ID and active device sessions</li>"
+                    "<li>Temporary keyed hashes of one-time linking codes</li>"
                     "<li>Telegram or user-selected profile photo</li></ul>",
                 ),
                 (
                     "Nearby discovery",
                     "<p>While discoverability is enabled, the app broadcasts "
-                    "your Telegram ID over Bluetooth Low Energy. Nearby "
+                    "your random Telescan ID over Bluetooth Low Energy. Nearby "
                     "Telescan devices use it to request the profile you share. "
                     "Signal strength and approximate distance are processed "
                     "locally and are not sent to the Telescan server.</p>",
@@ -77,11 +78,15 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Security and retention",
-                    "<p>API traffic uses HTTPS. Authentication codes are "
-                    "hashed before transmission and are stored on the server "
-                    "only as hashes. Account records and stored profile photos "
-                    "remain until you delete the Telescan account. Local data "
-                    "remains until account deletion or removal of the app.</p>"
+                    "<p>API traffic uses HTTPS. One-time linking codes are sent "
+                    "to the API over HTTPS and retained only as keyed hashes "
+                    "until use or expiry. Device sessions use short-lived "
+                    "access tokens and rotating refresh tokens stored by the "
+                    "iOS Keychain. During a limited backwards-compatibility "
+                    "rollout, an additional SHA-256 code hash may be retained "
+                    "for the older app and is removed after that rollout. "
+                    "Account records and stored profile photos "
+                    "remain until you delete the Telescan account.</p>"
                     "<p>Standard request metadata such as IP address, time, "
                     "path, and response status may be processed for delivery, "
                     "reliability, and security — never for advertising or "
@@ -91,15 +96,15 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Account and data deletion",
                     "<p>Open your profile in the app, select <strong>Delete "
                     "account</strong>, and confirm. Telescan removes the live "
-                    "account record, hashed authentication code, stored profile "
+                    "account record, linking codes, device sessions, stored "
                     "photos, and local account data and caches. This operation "
                     "cannot be undone and does not affect your Telegram account.</p>",
                 ),
                 (
                     "Your choices",
                     "<p>You can disable discoverability, replace or remove your "
-                    "profile photo, update the authentication code through the "
-                    "bot, or delete your account. Depending on applicable law, "
+                    "profile photo, link or revoke device sessions, or delete "
+                    "your account. Depending on applicable law, "
                     "you may also have rights to access, correct, restrict, or "
                     "object to processing of personal data.</p>"
                     "<p>Telescan is not intended for children under 13. A higher "
@@ -135,21 +140,23 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Какие данные мы обрабатываем",
                     "<p>При регистрации через Telegram-бота Telescan мы "
                     "получаем ваш Telegram ID, имя, username и текущую публичную "
-                    "фотографию профиля. Бот создаёт восьмизначный код "
-                    "аутентификации, а на сервере хранится только его SHA-256 "
-                    "хеш. Исходный код может храниться локально в приложении.</p>"
+                    "фотографию профиля. По вашему запросу API выпускает "
+                    "одноразовый код привязки с коротким сроком действия. До "
+                    "использования или истечения срока хранится только его "
+                    "ключевой хеш; приложение iOS не сохраняет сам код.</p>"
                     "<p>Если вы выбираете другую фотографию, Telescan получает "
                     "доступ только к снимку, выбранному через камеру или "
                     "системный медиапикер. Приложение уменьшает и сжимает его "
                     "перед загрузкой копии в облачное хранилище.</p>"
                     "<ul><li>Telegram ID, имя и username</li>"
-                    "<li>Хеш кода аутентификации</li>"
+                    "<li>Случайный Telescan ID и активные сессии устройств</li>"
+                    "<li>Временные ключевые хеши одноразовых кодов привязки</li>"
                     "<li>Фотография из Telegram или выбранная вами</li></ul>",
                 ),
                 (
                     "Поиск людей рядом",
                     "<p>Когда видимость включена, приложение передаёт ваш "
-                    "Telegram ID через Bluetooth Low Energy. Устройства Telescan "
+                    "случайный Telescan ID через Bluetooth Low Energy. Устройства Telescan "
                     "рядом используют его, чтобы запросить опубликованный вами "
                     "профиль. Сила сигнала и примерное расстояние обрабатываются "
                     "локально и не отправляются на сервер Telescan.</p>",
@@ -173,11 +180,15 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Безопасность и хранение",
-                    "<p>API работает через HTTPS. Коды аутентификации хешируются "
-                    "до отправки и хранятся на сервере только в виде хешей. "
-                    "Запись аккаунта и фотографии хранятся до удаления аккаунта "
-                    "Telescan. Локальные данные остаются до удаления аккаунта "
-                    "или приложения.</p>"
+                    "<p>API работает через HTTPS. Одноразовые коды привязки "
+                    "передаются API по HTTPS и до использования или истечения "
+                    "срока хранятся только как ключевые хеши. Сессии устройств "
+                    "используют короткоживущие access-токены и ротируемые "
+                    "refresh-токены в iOS Keychain. На время ограниченного "
+                    "переходного периода для старой версии приложения может "
+                    "дополнительно храниться SHA-256-хеш кода; после перехода "
+                    "он удаляется. Запись аккаунта и фотографии "
+                    "хранятся до удаления аккаунта Telescan.</p>"
                     "<p>Стандартные данные запросов — IP-адрес, время, путь и "
                     "статус ответа — могут обрабатываться для доставки, "
                     "надёжности и безопасности, но не для рекламы или "
@@ -187,14 +198,16 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Удаление аккаунта и данных",
                     "<p>Откройте профиль в приложении, выберите <strong>Удалить "
                     "аккаунт</strong> и подтвердите действие. Telescan удалит "
-                    "активную запись аккаунта, хеш кода, сохранённые фотографии, "
+                    "активную запись аккаунта, коды привязки, сессии устройств, "
+                    "сохранённые фотографии, "
                     "локальные данные и кеши. Операцию нельзя отменить; аккаунт "
                     "Telegram при этом не изменяется.</p>",
                 ),
                 (
                     "Ваш выбор",
                     "<p>Вы можете отключить видимость, заменить или удалить "
-                    "фотографию, обновить код через бота или удалить аккаунт. "
+                    "фотографию, привязать устройство, отозвать сессии или "
+                    "удалить аккаунт. "
                     "В зависимости от применимого законодательства вы также "
                     "можете иметь право на доступ, исправление, ограничение или "
                     "возражение против обработки персональных данных.</p>"
@@ -247,7 +260,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Your account and content",
                     "<p>You must be allowed to use Telegram and Telescan under "
                     "applicable law and platform rules. You are responsible for "
-                    "your authentication code, Telegram account, profile "
+                    "your linked devices, Telegram account, profile "
                     "information, and uploaded photos. Share only content you "
                     "have the right to use.</p>"
                     "<p>Your profile is available to nearby users only while "
@@ -337,7 +350,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Ваш аккаунт и контент",
                     "<p>Вы должны иметь право использовать Telegram и Telescan "
                     "по применимым законам и правилам платформ. Вы отвечаете за "
-                    "код аутентификации, аккаунт Telegram, сведения профиля и "
+                    "привязанные устройства, аккаунт Telegram, сведения профиля и "
                     "загруженные фотографии. Публикуйте только контент, на "
                     "использование которого у вас есть права.</p>"
                     "<p>Профиль доступен пользователям рядом только при "

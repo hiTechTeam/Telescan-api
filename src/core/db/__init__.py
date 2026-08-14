@@ -1,1 +1,1 @@
-from .client import mongo_client  # noqa
+"""Deprecated package; MongoDB now lives in infrastructure.mongodb."""

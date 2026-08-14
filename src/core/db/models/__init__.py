@@ -1,1 +1,1 @@
-from .users import User  # noqa
+"""Deprecated package; persistence documents now live in infrastructure.mongodb."""

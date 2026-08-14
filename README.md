@@ -1,67 +1,57 @@
 # Telescan API
 
-FastAPI backend for [Telescan](https://github.com/hiTechTeam/Telescan-info). It resolves Telegram profiles by code or ID, manages profile photos in S3-compatible storage, and permanently deletes account data.
+The API is the sole owner of Telescan MongoDB collections and S3 profile photos.
+The Telegram bot uses authenticated `/internal/v1` endpoints; iOS uses short-lived
+access tokens and rotating per-device refresh sessions.
 
-Public legal pages are served from the production domain with automatic English/Russian language selection:
+## Local run
 
-- `https://tgtelescan.ru/privacy`
-- `https://tgtelescan.ru/terms`
-
-## API
-
-Interactive documentation is available at `/docs` while the server is running.
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/v1/code/?hashed_code={sha256}` | Get a profile by hashed bot code |
-| `GET` | `/v1/users/?tg_id={id}` | Get a profile by Telegram ID |
-| `POST` | `/v1/users/upload-photo` | Upload a Base64-encoded profile photo |
-| `POST` | `/v1/users/update-photo` | Replace a photo, or delete it when `img` is `null` |
-| `DELETE` | `/v1/users/` | Delete the profile and all stored photos |
-
-Photo requests use `{"tgId": 123, "img": "base64..."}`. Account deletion uses the Telegram ID and SHA-256 code hash:
-
-```json
-{
-  "tgId": 123456789,
-  "hashedCode": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-}
-```
-
-A successful deletion returns `204 No Content`. The main profile response fields are `tgId`, `tgName`, `tgUsername`, and `photoS3URL`.
-
-## Run locally
-
-Requires Python 3.13+, [uv](https://docs.astral.sh/uv/), MongoDB, and S3-compatible storage.
-
-Create `.env`:
-
-```dotenv
-MONGO_USERNAME=
-MONGO_PASSWORD=
-MONGO_HOST=
-MONGO_PORT=27017
-MONGO_DBNAME=
-TelescanS3AccessKey=
-TelescanS3SecretKey=
-```
-
-Then start the API:
+Python 3.13+, MongoDB 8, and an S3-compatible bucket are required.
 
 ```sh
+cp .env.example .env
 uv sync
-make run
+uv run pytest
+uv run main.py
 ```
 
-The server listens on `http://localhost:8000`. To use Docker, first create the shared network once, then run the service:
+`MONGO_DBNAME` is used as the real database name. Production startup rejects
+development secrets and an empty CORS allow-list. Internal requests require
+`Authorization: Bearer $BOT_SERVICE_SECRET`; the public nginx edge must deny
+`/internal/`, and neither service may log the secret.
+
+## API v1
+
+- `POST /api/v1/auth/link`
+- `POST /api/v1/auth/refresh`
+- `DELETE /api/v1/auth/session`
+- `POST /api/v1/auth/logout-all/request`
+- `GET /api/v1/users/me`
+- `PUT|DELETE /api/v1/users/me/photo`
+- `DELETE /api/v1/users/me`
+- `GET /api/v1/profiles/{telescan_id}`
+- `POST /internal/v1/link-codes`
+- internal confirmation message, restore, and decision endpoints
+
+Except for link, refresh, and the legal pages, application endpoints require an
+access JWT and an active `DeviceSession`; revocation therefore takes effect
+immediately.
+
+## Migration
+
+The migration is dry-run unless `--apply` is supplied:
 
 ```sh
-docker network create telescan_network
-make api-up
+uv run python -m scripts.migrate_users
+uv run python -m scripts.migrate_users --apply
 ```
 
-## Links
-
-[iOS app](https://github.com/hiTechTeam/Telescan-iOS) · [Project documentation](https://github.com/hiTechTeam/Telescan-info) · [Developer](https://github.com/r66cha)
-
-Licensed under the [MIT License](LICENSE).
+It only fills missing UUID/timestamps and reports duplicate Telegram IDs. During
+a short old-iOS transition, set `ENABLE_LEGACY_API=true`; it reads the legacy
+hash directly without adding `code` back to the new model. While enabled, newly
+issued bot codes are also SHA-256-hashed into that raw legacy field so an old
+iOS installation can still re-link; this compatibility path is not one-time and
+must be kept short. After the new iOS version is adopted, disable legacy routes
+first, then review a cleanup dry-run.
+Actual hash removal additionally requires both `--apply` and
+`--confirm REMOVE_LEGACY_CODES`. No user documents are deleted by the migration.
