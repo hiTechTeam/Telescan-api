@@ -115,7 +115,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>We may update this policy when the service or legal "
                     "requirements change. The effective date identifies the "
                     "current version.</p><p>Privacy questions: "
-                    "<a href=\"mailto:admin@tgtelescan.ru\">"
+                    '<a href="mailto:admin@tgtelescan.ru">'
                     "admin@tgtelescan.ru</a>.</p>",
                 ),
             ),
@@ -220,7 +220,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Мы можем обновлять политику при изменении сервиса или "
                     "правовых требований. Дата вступления в силу обозначает "
                     "текущую версию.</p><p>Вопросы о конфиденциальности: "
-                    "<a href=\"mailto:admin@tgtelescan.ru\">"
+                    '<a href="mailto:admin@tgtelescan.ru">'
                     "admin@tgtelescan.ru</a>.</p>",
                 ),
             ),
@@ -240,7 +240,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>These Terms govern your use of the Telescan iOS app, "
                     "Telegram bot, API, and related services. By continuing in "
                     "the app or using the service, you agree to these Terms and "
-                    "the <a href=\"/privacy\">Privacy Policy</a>. If you do not "
+                    'the <a href="/privacy">Privacy Policy</a>. If you do not '
                     "agree, do not use Telescan.</p>",
                 ),
                 (
@@ -283,8 +283,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Telescan relies on Telegram, Apple platforms, and "
                     "infrastructure providers. Their services and terms are "
                     "separate from ours. App Store distributions are also "
-                    "subject to Apple’s <a href=\"https://www.apple.com/legal/"
-                    "internet-services/itunes/dev/stdeula/\" rel=\"noopener\">"
+                    'subject to Apple’s <a href="https://www.apple.com/legal/'
+                    'internet-services/itunes/dev/stdeula/" rel="noopener">'
                     "Standard Licensed Application EULA</a> unless another "
                     "agreement applies.</p>",
                 ),
@@ -311,7 +311,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>We may update these Terms when the service or legal "
                     "requirements change. Material changes will be presented "
                     "through an appropriate service or documentation update.</p>"
-                    "<p>Questions: <a href=\"mailto:admin@tgtelescan.ru\">"
+                    '<p>Questions: <a href="mailto:admin@tgtelescan.ru">'
                     "admin@tgtelescan.ru</a>.</p>",
                 ),
             ),
@@ -329,7 +329,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Эти Условия регулируют использование приложения "
                     "Telescan для iOS, Telegram-бота, API и связанных сервисов. "
                     "Продолжая работу в приложении или используя сервис, вы "
-                    "принимаете эти Условия и <a href=\"/privacy?lang=ru\">"
+                    'принимаете эти Условия и <a href="/privacy?lang=ru">'
                     "Политику конфиденциальности</a>. Если вы не согласны, не "
                     "используйте Telescan.</p>",
                 ),
@@ -373,8 +373,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Telescan зависит от Telegram, платформ Apple и "
                     "поставщиков инфраструктуры. Их сервисы и условия не "
                     "являются частью наших. Приложение из App Store также "
-                    "подчиняется <a href=\"https://www.apple.com/legal/internet-"
-                    "services/itunes/dev/stdeula/\" rel=\"noopener\">стандартному "
+                    'подчиняется <a href="https://www.apple.com/legal/internet-'
+                    'services/itunes/dev/stdeula/" rel="noopener">стандартному '
                     "лицензионному соглашению Apple</a>, если не применяется "
                     "другое соглашение.</p>",
                 ),
@@ -401,7 +401,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Мы можем обновлять Условия при изменении сервиса или "
                     "правовых требований. О существенных изменениях будет "
                     "сообщено через сервис или документацию.</p><p>Вопросы: "
-                    "<a href=\"mailto:admin@tgtelescan.ru\">"
+                    '<a href="mailto:admin@tgtelescan.ru">'
                     "admin@tgtelescan.ru</a>.</p>",
                 ),
             ),
@@ -454,7 +454,7 @@ def render_page(kind: str, language: str) -> str:
         other_label = "Условия" if kind == "privacy" else "Конфиденциальность"
 
     sections = "".join(
-        f'<section><h2>{escape(title)}</h2>{body}</section>'
+        f"<section><h2>{escape(title)}</h2>{body}</section>"
         for title, body in document.sections
     )
 

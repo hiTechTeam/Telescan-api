@@ -41,7 +41,9 @@ class IssueLinkCode:
 
         if photo is not None:
             photo_url = await self._photos.replace(
-                getattr(user, "telescan_id"), photo, getattr(user, "photo_s3_link", None)
+                getattr(user, "telescan_id"),
+                photo,
+                getattr(user, "photo_s3_link", None),
             )
             user = await self._users.update_photo(str(getattr(user, "id")), photo_url)
 

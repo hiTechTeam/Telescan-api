@@ -29,9 +29,7 @@ class S3PhotoStorage:
         async with self._session.create_client("s3", **self._client_config) as client:
             yield client
 
-    async def upload(
-        self, data: bytes, object_name: str, content_type: str
-    ) -> str:
+    async def upload(self, data: bytes, object_name: str, content_type: str) -> str:
         async with self._client() as client:
             await client.put_object(
                 Bucket=self._bucket_name,
@@ -59,7 +57,10 @@ class S3PhotoStorage:
         continuation_token: str | None = None
         async with self._client() as client:
             while True:
-                request: dict[str, Any] = {"Bucket": self._bucket_name, "Prefix": prefix}
+                request: dict[str, Any] = {
+                    "Bucket": self._bucket_name,
+                    "Prefix": prefix,
+                }
                 if continuation_token:
                     request["ContinuationToken"] = continuation_token
                 page = await client.list_objects_v2(**request)

@@ -29,7 +29,12 @@ from src.use_cases.confirmations import (
 )
 from src.use_cases.issue_link_code import IssueLinkCode
 from src.use_cases.legacy import LegacyCompatibility
-from src.use_cases.profiles import DeleteAccount, GetOwnProfile, GetPublicProfile, UpdateOwnPhoto
+from src.use_cases.profiles import (
+    DeleteAccount,
+    GetOwnProfile,
+    GetPublicProfile,
+    UpdateOwnPhoto,
+)
 
 
 @dataclass(slots=True)
@@ -80,9 +85,7 @@ def build_container(settings: Settings) -> Container:
         settings.internal_request_timeout_seconds,
     )
     update_own_photo = UpdateOwnPhoto(users, photos)
-    delete_account = DeleteAccount(
-        users, link_codes, sessions, confirmations, photos
-    )
+    delete_account = DeleteAccount(users, link_codes, sessions, confirmations, photos)
     return Container(
         settings=settings,
         users=users,

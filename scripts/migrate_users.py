@@ -33,7 +33,9 @@ def parse_args() -> argparse.Namespace:
 def migrate_users(collection, apply: bool) -> dict[str, int]:
     scanned = changed = 0
     telegram_ids: list[int] = []
-    for user in collection.find({}, {"tg_id": 1, "telescan_id": 1, "created_at": 1, "updated_at": 1}):
+    for user in collection.find(
+        {}, {"tg_id": 1, "telescan_id": 1, "created_at": 1, "updated_at": 1}
+    ):
         scanned += 1
         if "tg_id" in user:
             telegram_ids.append(user["tg_id"])
@@ -85,7 +87,9 @@ def main() -> None:
         mode = "APPLY" if args.apply else "DRY-RUN"
         print(f"{mode}: {report}")
         if report["duplicate_tg_ids"]:
-            raise SystemExit("Duplicate tg_id values must be resolved manually before index creation")
+            raise SystemExit(
+                "Duplicate tg_id values must be resolved manually before index creation"
+            )
     finally:
         client.close()
 

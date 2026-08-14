@@ -19,7 +19,9 @@ class UserDocument(Document):
     class Settings:
         name = "users"
         indexes = [
-            IndexModel([("telescan_id", ASCENDING)], unique=True, name="uniq_telescan_id"),
+            IndexModel(
+                [("telescan_id", ASCENDING)], unique=True, name="uniq_telescan_id"
+            ),
             IndexModel([("tg_id", ASCENDING)], unique=True, name="uniq_tg_id"),
         ]
 
@@ -42,7 +44,9 @@ class LinkCodeDocument(Document):
                 [("user_id", ASCENDING), ("status", ASCENDING)],
                 name="user_status",
             ),
-            IndexModel([("expires_at", ASCENDING)], expireAfterSeconds=0, name="ttl_expires_at"),
+            IndexModel(
+                [("expires_at", ASCENDING)], expireAfterSeconds=0, name="ttl_expires_at"
+            ),
         ]
 
 
@@ -63,7 +67,9 @@ class DeviceSessionDocument(Document):
                 unique=True,
                 name="uniq_user_device",
             ),
-            IndexModel([("expires_at", ASCENDING)], expireAfterSeconds=0, name="ttl_expires_at"),
+            IndexModel(
+                [("expires_at", ASCENDING)], expireAfterSeconds=0, name="ttl_expires_at"
+            ),
         ]
 
 
@@ -81,8 +87,12 @@ class ConfirmationRequestDocument(Document):
         name = "confirmation_requests"
         indexes = [
             IndexModel([("public_id", ASCENDING)], unique=True, name="uniq_public_id"),
-            IndexModel([("user_id", ASCENDING), ("status", ASCENDING)], name="user_status"),
-            IndexModel([("expires_at", ASCENDING)], expireAfterSeconds=0, name="ttl_expires_at"),
+            IndexModel(
+                [("user_id", ASCENDING), ("status", ASCENDING)], name="user_status"
+            ),
+            IndexModel(
+                [("expires_at", ASCENDING)], expireAfterSeconds=0, name="ttl_expires_at"
+            ),
         ]
 
 

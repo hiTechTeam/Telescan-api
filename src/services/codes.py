@@ -23,12 +23,13 @@ class LinkCodeService:
 
     def hash(self, code: str) -> str:
         normalized = self.normalize(code)
-        if (
-            len(normalized) != self._length
-            or any(character not in self.ALPHABET for character in normalized)
+        if len(normalized) != self._length or any(
+            character not in self.ALPHABET for character in normalized
         ):
             raise InvalidLinkCode()
-        return hmac.new(self._secret, normalized.encode("utf-8"), hashlib.sha256).hexdigest()
+        return hmac.new(
+            self._secret, normalized.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
 
 
 class LegacyCodePublisher:

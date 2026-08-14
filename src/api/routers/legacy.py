@@ -3,7 +3,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from src.dependencies.container import Container, get_container
-from src.schemas.legacy import LegacyDeleteRequest, LegacyPhotoRequest, LegacyProfileResponse
+from src.schemas.legacy import (
+    LegacyDeleteRequest,
+    LegacyPhotoRequest,
+    LegacyProfileResponse,
+)
 
 router = APIRouter(prefix="/v1", tags=["legacy"], include_in_schema=False)
 

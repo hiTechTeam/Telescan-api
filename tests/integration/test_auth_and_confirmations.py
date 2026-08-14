@@ -64,7 +64,9 @@ async def test_issue_revokes_previous_and_code_expires() -> None:
 
 
 @pytest.mark.asyncio
-async def test_link_is_one_time_under_concurrency_and_supports_multiple_devices() -> None:
+async def test_link_is_one_time_under_concurrency_and_supports_multiple_devices() -> (
+    None
+):
     _, _, sessions, issue, link = build_auth_flow()
     now = datetime.now(UTC)
     issued = await issue.execute(10, "Ada", "ada", None, now)
@@ -94,11 +96,15 @@ async def test_confirmation_cancel_confirm_and_expire() -> None:
     user_id = next(iter(users.users))
 
     cancelled = await request.execute(user_id, now)
-    await decide.execute(cancelled.confirmation_id, 10, ConfirmationStatus.CANCELLED, now)
+    await decide.execute(
+        cancelled.confirmation_id, 10, ConfirmationStatus.CANCELLED, now
+    )
     assert all(session.revoked_at is None for session in sessions.items.values())
 
     confirmed = await request.execute(user_id, now)
-    await decide.execute(confirmed.confirmation_id, 10, ConfirmationStatus.CONFIRMED, now)
+    await decide.execute(
+        confirmed.confirmation_id, 10, ConfirmationStatus.CONFIRMED, now
+    )
     assert all(session.revoked_at is not None for session in sessions.items.values())
 
     expired = await request.execute(user_id, now)
@@ -123,12 +129,8 @@ async def test_logout_revokes_only_current_session_and_blocks_it_immediately() -
     second_code = await issue.execute(
         10, "Ada", "ada", None, now + timedelta(seconds=1)
     )
-    await link.execute(
-        second_code.code, second_device_id, now + timedelta(seconds=1)
-    )
-    token_service = TokenService(
-        "jwt-secret-that-is-at-least-32-bytes", "issuer", 900
-    )
+    await link.execute(second_code.code, second_device_id, now + timedelta(seconds=1))
+    token_service = TokenService("jwt-secret-that-is-at-least-32-bytes", "issuer", 900)
     user_id, first_session_id = token_service.decode_access(first_tokens.access_token)
     second_session_id = next(
         session.id
@@ -156,16 +158,16 @@ async def test_logout_revokes_only_current_session_and_blocks_it_immediately() -
 
 
 @pytest.mark.asyncio
-async def test_account_deletion_cleans_domain_data_and_photos_separately_from_logout() -> None:
+async def test_account_deletion_cleans_domain_data_and_photos_separately_from_logout() -> (
+    None
+):
     users, codes, sessions, issue, link = build_auth_flow()
     now = datetime.now(UTC)
     issued = await issue.execute(10, "Ada", "ada", None, now)
     _, user = await link.execute(issued.code, uuid4(), now)
     user.photo_s3_link = "https://storage.example/users/photo.jpg"
     confirmations = FakeConfirmations()
-    await confirmations.create_logout_all(
-        str(user.id), now, now + timedelta(minutes=5)
-    )
+    await confirmations.create_logout_all(str(user.id), now, now + timedelta(minutes=5))
     storage = FakeStorage()
     delete = DeleteAccount(
         users,

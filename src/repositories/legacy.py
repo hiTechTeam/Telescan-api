@@ -23,7 +23,9 @@ class LegacyRepository:
         raw = await UserDocument.get_pymongo_collection().find_one({"code": code_hash})
         return UserDocument.model_validate(raw) if raw else None
 
-    async def validate_user_hash(self, tg_id: int, code_hash: str) -> UserDocument | None:
+    async def validate_user_hash(
+        self, tg_id: int, code_hash: str
+    ) -> UserDocument | None:
         raw = await UserDocument.get_pymongo_collection().find_one(
             {"tg_id": tg_id, "code": code_hash}
         )

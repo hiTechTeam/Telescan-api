@@ -21,9 +21,7 @@ class Settings(BaseSettings):
     mongo_port: int = 27017
     mongo_dbname: str = "telescan_db"
 
-    jwt_secret: str = Field(
-        default="development-jwt-secret-change-me", min_length=32
-    )
+    jwt_secret: str = Field(default="development-jwt-secret-change-me", min_length=32)
     link_code_hmac_secret: str = Field(
         default="development-link-secret-change-me", min_length=32
     )

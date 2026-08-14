@@ -13,7 +13,10 @@ class ConfirmationRepository:
         self, user_id: str, now: datetime, expires_at: datetime
     ) -> ConfirmationRequestDocument:
         await ConfirmationRequestDocument.get_pymongo_collection().update_many(
-            {"user_id": PydanticObjectId(user_id), "status": ConfirmationStatus.PENDING},
+            {
+                "user_id": PydanticObjectId(user_id),
+                "status": ConfirmationStatus.PENDING,
+            },
             {"$set": {"status": ConfirmationStatus.CANCELLED}},
         )
         request = ConfirmationRequestDocument(

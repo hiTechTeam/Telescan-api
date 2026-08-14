@@ -3,7 +3,11 @@ from uuid import UUID
 
 from src.domain.entities import AuthTokens
 from src.domain.errors import InvalidLinkCode, UserNotFound
-from src.domain.ports import LinkCodeRepositoryPort, SessionRepositoryPort, UserRepositoryPort
+from src.domain.ports import (
+    LinkCodeRepositoryPort,
+    SessionRepositoryPort,
+    UserRepositoryPort,
+)
 from src.services.codes import LinkCodeService
 from src.services.sessions import SessionService
 

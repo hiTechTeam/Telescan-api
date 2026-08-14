@@ -1,7 +1,3 @@
-from datetime import UTC, datetime
-
-from pymongo import IndexModel
-
 from scripts.migrate_users import migrate_users
 from src.app import create_app
 from src.core.config import Settings
@@ -38,7 +34,9 @@ def test_public_profile_never_exposes_telegram_id() -> None:
 def test_own_profile_contract_cannot_target_another_user() -> None:
     schema = create_app(settings=Settings(), container=object()).openapi()
     photo_operation = schema["paths"]["/api/v1/users/me/photo"]["put"]
-    body_schema = photo_operation["requestBody"]["content"]["multipart/form-data"]["schema"]
+    body_schema = photo_operation["requestBody"]["content"]["multipart/form-data"][
+        "schema"
+    ]
     component_name = body_schema["$ref"].rsplit("/", maxsplit=1)[1]
     properties = schema["components"]["schemas"][component_name]["properties"]
 
@@ -52,8 +50,13 @@ def test_own_profile_contract_cannot_target_another_user() -> None:
 
 def test_user_has_unique_telescan_and_telegram_indexes() -> None:
     documents = [index.document for index in UserDocument.Settings.indexes]
-    assert any(index.get("unique") and index.get("name") == "uniq_telescan_id" for index in documents)
-    assert any(index.get("unique") and index.get("name") == "uniq_tg_id" for index in documents)
+    assert any(
+        index.get("unique") and index.get("name") == "uniq_telescan_id"
+        for index in documents
+    )
+    assert any(
+        index.get("unique") and index.get("name") == "uniq_tg_id" for index in documents
+    )
 
 
 def test_migration_is_dry_run_and_idempotent() -> None:

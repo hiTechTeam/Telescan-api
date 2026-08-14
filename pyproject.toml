@@ -20,5 +20,12 @@ requires-python = ">=3.13"
 version = "0.1.0"
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
 asyncio_mode = "auto"
+pythonpath = ["."]
+
+[tool.pyright]
+include = ["main.py", "scripts", "src"]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+venv = ".venv"
+venvPath = "."

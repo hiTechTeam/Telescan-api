@@ -34,7 +34,9 @@ class FakeUsers:
         return self.users.get(user_id)
 
     async def get_by_telescan_id(self, telescan_id):
-        return next((u for u in self.users.values() if u.telescan_id == telescan_id), None)
+        return next(
+            (u for u in self.users.values() if u.telescan_id == telescan_id), None
+        )
 
     async def get_by_tg_id(self, tg_id):
         return self.users.get(self.by_tg.get(tg_id, ""))
@@ -87,7 +89,9 @@ class FakeLinkCodes:
             return item
 
     async def delete_for_user(self, user_id):
-        self.items = {key: value for key, value in self.items.items() if value.user_id != user_id}
+        self.items = {
+            key: value for key, value in self.items.items() if value.user_id != user_id
+        }
 
 
 class FakeSessions:
@@ -143,7 +147,9 @@ class FakeSessions:
                 session.revoked_at = now
 
     async def delete_for_user(self, user_id):
-        self.items = {key: value for key, value in self.items.items() if value.user_id != user_id}
+        self.items = {
+            key: value for key, value in self.items.items() if value.user_id != user_id
+        }
 
 
 class FakeConfirmations:
@@ -183,16 +189,26 @@ class FakeConfirmations:
 
     async def expire(self, confirmation_id, user_id, now):
         item = self.items.get(confirmation_id)
-        if item and item.user_id == user_id and item.status == ConfirmationStatus.PENDING:
+        if (
+            item
+            and item.user_id == user_id
+            and item.status == ConfirmationStatus.PENDING
+        ):
             if item.expires_at <= now:
                 item.status = ConfirmationStatus.EXPIRED
         return item
 
     async def list_pending(self):
-        return [item for item in self.items.values() if item.status == ConfirmationStatus.PENDING]
+        return [
+            item
+            for item in self.items.values()
+            if item.status == ConfirmationStatus.PENDING
+        ]
 
     async def delete_for_user(self, user_id):
-        self.items = {key: value for key, value in self.items.items() if value.user_id != user_id}
+        self.items = {
+            key: value for key, value in self.items.items() if value.user_id != user_id
+        }
 
 
 class FakeStorage:
@@ -215,5 +231,7 @@ class FakeBot:
     def __init__(self) -> None:
         self.requests = []
 
-    async def request_logout_all_confirmation(self, confirmation_id, chat_id, expires_at):
+    async def request_logout_all_confirmation(
+        self, confirmation_id, chat_id, expires_at
+    ):
         self.requests.append((confirmation_id, chat_id, expires_at))
