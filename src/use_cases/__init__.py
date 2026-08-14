@@ -1,6 +1,7 @@
 from .auth import LinkDevice, RefreshSession
 from .confirmations import (
     DecideConfirmation,
+    GetConfirmationStatus,
     ListPendingConfirmations,
     RegisterConfirmationMessage,
     RequestLogoutAll,
@@ -11,6 +12,7 @@ from .profiles import DeleteAccount, GetOwnProfile, GetPublicProfile, UpdateOwnP
 __all__ = [
     "DecideConfirmation",
     "DeleteAccount",
+    "GetConfirmationStatus",
     "GetOwnProfile",
     "GetPublicProfile",
     "IssueLinkCode",

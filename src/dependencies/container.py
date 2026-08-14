@@ -23,6 +23,7 @@ from src.services import (
 from src.use_cases.auth import LinkDevice, RefreshSession
 from src.use_cases.confirmations import (
     DecideConfirmation,
+    GetConfirmationStatus,
     ListPendingConfirmations,
     RegisterConfirmationMessage,
     RequestLogoutAll,
@@ -48,6 +49,7 @@ class Container:
     link_device: LinkDevice
     refresh_session: RefreshSession
     request_logout_all: RequestLogoutAll
+    get_confirmation_status: GetConfirmationStatus
     decide_confirmation: DecideConfirmation
     list_pending_confirmations: ListPendingConfirmations
     register_confirmation_message: RegisterConfirmationMessage
@@ -112,6 +114,7 @@ def build_container(settings: Settings) -> Container:
         request_logout_all=RequestLogoutAll(
             users, confirmations, bot, settings.confirmation_ttl_seconds
         ),
+        get_confirmation_status=GetConfirmationStatus(confirmations),
         decide_confirmation=DecideConfirmation(users, confirmations, sessions),
         list_pending_confirmations=ListPendingConfirmations(confirmations),
         register_confirmation_message=RegisterConfirmationMessage(confirmations),

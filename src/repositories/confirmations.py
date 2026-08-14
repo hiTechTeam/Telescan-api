@@ -102,6 +102,14 @@ class ConfirmationRepository:
             ConfirmationRequestDocument.status == ConfirmationStatus.PENDING
         ).to_list()
 
+    async def get_for_user(
+        self, confirmation_id: UUID, user_id: str
+    ) -> ConfirmationRequestDocument | None:
+        return await ConfirmationRequestDocument.find_one(
+            ConfirmationRequestDocument.public_id == confirmation_id,
+            ConfirmationRequestDocument.user_id == PydanticObjectId(user_id),
+        )
+
     async def delete_for_user(self, user_id: str) -> None:
         await ConfirmationRequestDocument.find(
             ConfirmationRequestDocument.user_id == PydanticObjectId(user_id)

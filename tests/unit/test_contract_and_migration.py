@@ -46,6 +46,10 @@ def test_own_profile_contract_cannot_target_another_user() -> None:
     assert schema["paths"]["/api/v1/profiles/{telescan_id}"]["get"]["security"] == [
         {"HTTPBearer": []}
     ]
+    status_operation = schema["paths"][
+        "/api/v1/auth/logout-all/requests/{confirmation_id}"
+    ]["get"]
+    assert status_operation["security"] == [{"HTTPBearer": []}]
 
 
 def test_user_has_unique_telescan_and_telegram_indexes() -> None:

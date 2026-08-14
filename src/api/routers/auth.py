@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response, status
 
@@ -72,6 +73,24 @@ async def request_logout_all(
     container: Annotated[Container, Depends(get_container)],
 ) -> ConfirmationResponse:
     result = await container.request_logout_all.execute(auth.user_id)
+    return ConfirmationResponse(
+        confirmation_id=result.confirmation_id,
+        status=result.status,
+    )
+
+
+@router.get(
+    "/logout-all/requests/{confirmation_id}",
+    response_model=ConfirmationResponse,
+)
+async def get_logout_all_status(
+    confirmation_id: UUID,
+    auth: Annotated[AuthContext, Depends(get_current_auth)],
+    container: Annotated[Container, Depends(get_container)],
+) -> ConfirmationResponse:
+    result = await container.get_confirmation_status.execute(
+        confirmation_id, auth.user_id
+    )
     return ConfirmationResponse(
         confirmation_id=result.confirmation_id,
         status=result.status,

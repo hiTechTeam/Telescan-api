@@ -205,6 +205,10 @@ class FakeConfirmations:
             if item.status == ConfirmationStatus.PENDING
         ]
 
+    async def get_for_user(self, confirmation_id, user_id):
+        item = self.items.get(confirmation_id)
+        return item if item and item.user_id == user_id else None
+
     async def delete_for_user(self, user_id):
         self.items = {
             key: value for key, value in self.items.items() if value.user_id != user_id

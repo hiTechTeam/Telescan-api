@@ -92,6 +92,35 @@ class DecideConfirmation:
         )
 
 
+class GetConfirmationStatus:
+    def __init__(self, confirmations: ConfirmationRepositoryPort) -> None:
+        self._confirmations = confirmations
+
+    async def execute(
+        self,
+        confirmation_id: UUID,
+        user_id: str,
+        now: datetime | None = None,
+    ) -> ConfirmationResult:
+        current_time = now or datetime.now(UTC)
+        request = await self._confirmations.get_for_user(confirmation_id, user_id)
+        if request is None:
+            raise ConfirmationNotFound()
+        if (
+            getattr(request, "status") == ConfirmationStatus.PENDING
+            and getattr(request, "expires_at") <= current_time
+        ):
+            request = await self._confirmations.expire(
+                confirmation_id, user_id, current_time
+            )
+            if request is None:
+                raise ConfirmationNotFound()
+        return ConfirmationResult(
+            status=getattr(request, "status"),
+            confirmation_id=confirmation_id,
+        )
+
+
 class ListPendingConfirmations:
     def __init__(self, confirmations: ConfirmationRepositoryPort) -> None:
         self._confirmations = confirmations

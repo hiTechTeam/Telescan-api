@@ -10,13 +10,17 @@ from src.api.routers.auth import logout_current_session
 from src.dependencies.auth import get_current_auth
 from src.domain.entities import AuthContext
 from src.domain.enums import ConfirmationStatus, LinkCodeStatus
-from src.domain.errors import InvalidLinkCode, SessionRevoked
+from src.domain.errors import ConfirmationNotFound, InvalidLinkCode, SessionRevoked
 from src.infrastructure.jwt import TokenService
 from src.services.codes import LinkCodeService
 from src.services.photos import PhotoService
 from src.services.sessions import SessionService
 from src.use_cases.auth import LinkDevice
-from src.use_cases.confirmations import DecideConfirmation, RequestLogoutAll
+from src.use_cases.confirmations import (
+    DecideConfirmation,
+    GetConfirmationStatus,
+    RequestLogoutAll,
+)
 from src.use_cases.issue_link_code import IssueLinkCode
 from src.use_cases.profiles import DeleteAccount
 from tests.fakes import (
@@ -123,12 +127,21 @@ async def test_confirmation_cancel_confirm_and_expire() -> None:
     bot = FakeBot()
     request = RequestLogoutAll(users, confirmations, bot, 300)
     decide = DecideConfirmation(users, confirmations, sessions)
+    status = GetConfirmationStatus(confirmations)
     user_id = next(iter(users.users))
 
     cancelled = await request.execute(user_id, now)
+    assert (
+        await status.execute(cancelled.confirmation_id, user_id, now)
+    ).status == ConfirmationStatus.PENDING
+    with pytest.raises(ConfirmationNotFound):
+        await status.execute(cancelled.confirmation_id, "another-user", now)
     await decide.execute(
         cancelled.confirmation_id, 10, ConfirmationStatus.CANCELLED, now
     )
+    assert (
+        await status.execute(cancelled.confirmation_id, user_id, now)
+    ).status == ConfirmationStatus.CANCELLED
     assert all(session.revoked_at is None for session in sessions.items.values())
 
     confirmed = await request.execute(user_id, now)
@@ -138,11 +151,8 @@ async def test_confirmation_cancel_confirm_and_expire() -> None:
     assert all(session.revoked_at is not None for session in sessions.items.values())
 
     expired = await request.execute(user_id, now)
-    result = await decide.execute(
-        expired.confirmation_id,
-        10,
-        ConfirmationStatus.EXPIRED,
-        now + timedelta(minutes=6),
+    result = await status.execute(
+        expired.confirmation_id, user_id, now + timedelta(minutes=6)
     )
     assert result.status == ConfirmationStatus.EXPIRED
     assert len(bot.requests) == 3

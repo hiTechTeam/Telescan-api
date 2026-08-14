@@ -78,6 +78,7 @@ Authenticated iOS API:
 | --- | --- | --- |
 | `DELETE` | `/api/v1/auth/session` | Revoke the current device session |
 | `POST` | `/api/v1/auth/logout-all/request` | Request Telegram confirmation for revoking all sessions |
+| `GET` | `/api/v1/auth/logout-all/requests/{confirmation_id}` | Poll the authenticated Telegram confirmation status |
 | `GET` | `/api/v1/users/me` | Read the current account |
 | `PUT` | `/api/v1/users/me/photo` | Replace the current account photo |
 | `DELETE` | `/api/v1/users/me/photo` | Remove the current account photo |
