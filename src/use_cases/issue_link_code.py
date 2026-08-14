@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 
 from src.domain.entities import IssuedLinkCode
@@ -9,6 +10,9 @@ from src.domain.ports import (
 )
 from src.services.codes import LinkCodeService
 from src.services.photos import PhotoService
+
+
+logger = logging.getLogger(__name__)
 
 
 class IssueLinkCode:
@@ -40,12 +44,21 @@ class IssueLinkCode:
         user = await self._users.upsert_telegram_profile(tg_id, tg_name, tg_username)
 
         if photo is not None:
-            photo_url = await self._photos.replace(
-                getattr(user, "telescan_id"),
-                photo,
-                getattr(user, "photo_s3_link", None),
-            )
-            user = await self._users.update_photo(str(getattr(user, "id")), photo_url)
+            try:
+                photo_url = await self._photos.replace(
+                    getattr(user, "telescan_id"),
+                    photo,
+                    getattr(user, "photo_s3_link", None),
+                )
+                user = await self._users.update_photo(
+                    str(getattr(user, "id")), photo_url
+                )
+            except Exception:
+                logger.exception(
+                    "Could not synchronize Telegram photo for user %s; "
+                    "continuing link-code issuance",
+                    getattr(user, "id", "unknown"),
+                )
 
         user_id = str(getattr(user, "id"))
         await self._link_codes.revoke_issued(user_id, current_time)

@@ -46,6 +46,9 @@ Only an HMAC-SHA-256 digest is stored in the `link_codes` collection. A new code
 revokes any earlier unused code for that account; a code expires after 5–10
 minutes, is consumed atomically, and can be used only once.
 
+Copying the optional Telegram profile photo is best effort: an S3 outage is
+logged but does not prevent the API from issuing the one-time link code.
+
 The iOS app submits the clear code with a random installation `device_id`.
 Successful linking creates or replaces that device's session and returns:
 

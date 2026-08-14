@@ -64,6 +64,36 @@ async def test_issue_revokes_previous_and_code_expires() -> None:
 
 
 @pytest.mark.asyncio
+async def test_issue_continues_when_telegram_photo_upload_fails() -> None:
+    class FailingStorage(FakeStorage):
+        async def upload(self, data, object_name, content_type):
+            raise OSError("storage unavailable")
+
+    users = FakeUsers()
+    codes = FakeLinkCodes()
+    issue = IssueLinkCode(
+        users,
+        codes,
+        LinkCodeService("hmac-secret", 8),
+        PhotoService(FailingStorage(), 1024),
+        300,
+    )
+
+    result = await issue.execute(
+        10,
+        "Ada",
+        "ada",
+        b"\xff\xd8\xffphoto",
+        datetime.now(UTC),
+    )
+
+    assert len(result.code) == 8
+    user = next(iter(users.users.values()))
+    assert user.photo_s3_link is None
+    assert len(codes.items) == 1
+
+
+@pytest.mark.asyncio
 async def test_link_is_one_time_under_concurrency_and_supports_multiple_devices() -> (
     None
 ):
