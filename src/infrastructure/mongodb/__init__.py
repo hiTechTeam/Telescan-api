@@ -1,4 +1,4 @@
-from .database import close_database, init_database
+from .database import close_database, database_ready, init_database
 from .documents import (
     ConfirmationRequestDocument,
     DeviceSessionDocument,
@@ -12,5 +12,6 @@ __all__ = [
     "LinkCodeDocument",
     "UserDocument",
     "close_database",
+    "database_ready",
     "init_database",
 ]

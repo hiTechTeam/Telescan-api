@@ -1,5 +1,8 @@
+import asyncio
+
 from beanie import init_beanie
 from pymongo import AsyncMongoClient
+from pymongo.errors import PyMongoError
 
 from src.core.config import Settings
 
@@ -25,3 +28,16 @@ async def close_database() -> None:
     if _client is not None:
         await _client.close()
         _client = None
+
+
+async def database_ready(timeout_seconds: float = 2.0) -> bool:
+    if _client is None:
+        return False
+    try:
+        await asyncio.wait_for(
+            _client.admin.command("ping"),
+            timeout=timeout_seconds,
+        )
+    except (PyMongoError, TimeoutError):
+        return False
+    return True

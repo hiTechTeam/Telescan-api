@@ -55,13 +55,15 @@ jobs:
           git merge --ff-only origin/main
           docker compose config --quiet
           docker compose up -d --build --no-deps telescan-api
-          for attempt in {1..12}; do
-            RUNNING_SERVICE="$(docker compose ps --status running --services telescan-api)"
-            if [ "$RUNNING_SERVICE" = "telescan-api" ]; then
+          CONTAINER_ID="$(docker compose ps -q telescan-api)"
+          test -n "$CONTAINER_ID"
+          for attempt in {1..20}; do
+            HEALTH_STATUS="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_ID")"
+            if [ "$HEALTH_STATUS" = "healthy" ]; then
               break
             fi
             sleep 5
           done
           docker compose ps telescan-api
-          test "$(docker compose ps --status running --services telescan-api)" = "telescan-api"
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_ID")" = "healthy"
           REMOTE

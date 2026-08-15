@@ -28,6 +28,13 @@ docker network create telescan_network
 make api-up
 ```
 
+Compose injects runtime settings from the host `.env`; `.dockerignore` prevents
+that file, Git metadata, local virtual environments, tests, and tool caches from
+being copied into image layers. The container restarts unless explicitly stopped.
+`GET /health/live` checks the process, while `GET /health/ready` additionally
+requires a successful bounded MongoDB ping. Production deployment waits for the
+Docker health state to become `healthy`.
+
 For a complete local quality check:
 
 ```sh
