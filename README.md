@@ -46,8 +46,10 @@ Only an HMAC-SHA-256 digest is stored in the `link_codes` collection. A new code
 revokes any earlier unused code for that account; a code expires after 5–10
 minutes, is consumed atomically, and can be used only once.
 
-Copying the optional Telegram profile photo is best effort: an S3 outage is
-logged but does not prevent the API from issuing the one-time link code.
+The bot explicitly reports whether the Telegram photo is present, absent, or
+temporarily unavailable. A present photo is copied to a new unique object URL,
+an absent photo removes the obsolete stored copy, and a temporary download or
+S3 failure preserves the previous photo without preventing code issuance.
 The S3 client validates TLS with `AWS_CA_BUNDLE` when set, otherwise with the
 operating system's trusted CA bundle.
 
@@ -96,6 +98,14 @@ Bot-only API, protected by `Authorization: Bearer $BOT_SERVICE_SECRET`:
 
 Legacy `/v1` routes are hidden from OpenAPI and are registered only when
 `ENABLE_LEGACY_API=true`. Keep this compatibility window short.
+
+The current iOS MVP does not expose logout-all; it offers current-device logout
+and account deletion. The logout-all endpoints and Telegram confirmation flow
+remain server-side for compatibility and a later push-based client flow.
+
+All FastAPI route functions live in `src/api/routers`. Legal document data and
+rendering live in `src/api/presentation`, while the HTML shell is kept in
+`src/api/templates/legal.html`; route modules do not embed page markup.
 
 ## Data ownership and deletion
 

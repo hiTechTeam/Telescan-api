@@ -1,12 +1,12 @@
 """Public, localized legal pages for Telescan."""
 
 from dataclasses import dataclass
+from functools import lru_cache
 from html import escape
+from pathlib import Path
+from string import Template
 
-from fastapi import APIRouter, Query, Request, status
-from fastapi.responses import HTMLResponse
-
-__all__ = ["legal_router"]
+__all__ = ["render_page", "resolve_language"]
 
 
 @dataclass(frozen=True)
@@ -25,7 +25,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "How Telescan processes account, profile-photo, and nearby "
                 "discovery data — and how you stay in control."
             ),
-            effective_date="Effective August 12, 2026",
+            effective_date="Effective August 15, 2026",
             sections=(
                 (
                     "Overview",
@@ -103,8 +103,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Your choices",
                     "<p>You can disable discoverability, replace or remove your "
-                    "profile photo, link or revoke device sessions, or delete "
-                    "your account. Depending on applicable law, "
+                    "profile photo, sign out the current device, or delete "
+                    "your account and all its sessions. Depending on applicable law, "
                     "you may also have rights to access, correct, restrict, or "
                     "object to processing of personal data.</p>"
                     "<p>Telescan is not intended for children under 13. A higher "
@@ -126,7 +126,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Как Telescan обрабатывает данные аккаунта, фотографии и "
                 "поиска людей рядом — и как вы ими управляете."
             ),
-            effective_date="Действует с 12 августа 2026 года",
+            effective_date="Действует с 15 августа 2026 года",
             sections=(
                 (
                     "Общие положения",
@@ -206,8 +206,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Ваш выбор",
                     "<p>Вы можете отключить видимость, заменить или удалить "
-                    "фотографию, привязать устройство, отозвать сессии или "
-                    "удалить аккаунт. "
+                    "фотографию, выйти на текущем устройстве или удалить "
+                    "аккаунт и все его сессии. "
                     "В зависимости от применимого законодательства вы также "
                     "можете иметь право на доступ, исправление, ограничение или "
                     "возражение против обработки персональных данных.</p>"
@@ -233,7 +233,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "The essential terms for using the Telescan app, bot, API, "
                 "and related services."
             ),
-            effective_date="Effective August 12, 2026",
+            effective_date="Effective August 15, 2026",
             sections=(
                 (
                     "Agreement",
@@ -322,7 +322,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Основные условия использования приложения Telescan, бота, "
                 "API и связанных сервисов."
             ),
-            effective_date="Действуют с 12 августа 2026 года",
+            effective_date="Действуют с 15 августа 2026 года",
             sections=(
                 (
                     "Согласие с условиями",
@@ -410,9 +410,6 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
 }
 
 
-legal_router = APIRouter(tags=["legal"], include_in_schema=False)
-
-
 def resolve_language(requested: str | None, accept_language: str) -> str:
     if requested:
         normalized = requested.strip().lower()
@@ -441,6 +438,12 @@ def resolve_language(requested: str | None, accept_language: str) -> str:
     return max(preferences, default=(0.0, "en"))[1]
 
 
+@lru_cache(maxsize=1)
+def _page_template() -> Template:
+    path = Path(__file__).resolve().parents[1] / "templates" / "legal.html"
+    return Template(path.read_text(encoding="utf-8"))
+
+
 def render_page(kind: str, language: str) -> str:
     document = DOCUMENTS[kind][language]
     other_kind = "terms" if kind == "privacy" else "privacy"
@@ -458,120 +461,17 @@ def render_page(kind: str, language: str) -> str:
         for title, body in document.sections
     )
 
-    return f"""<!doctype html>
-<html lang="{language}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0a84ff">
-  <meta name="description" content="{escape(document.summary)}">
-  <link rel="canonical" href="https://tgtelescan.ru/{kind}">
-  <title>{escape(document.title)} · Telescan</title>
-  <style>
-    :root {{ color-scheme: light dark; --brand:#0a84ff; --ink:#102033;
-      --muted:#5d6b7c; --page:#f3f7fc; --card:rgba(255,255,255,.86);
-      --line:rgba(19,51,84,.12); --shadow:0 22px 65px rgba(28,77,126,.12); }}
-    * {{ box-sizing:border-box; }}
-    html {{ scroll-behavior:smooth; }}
-    body {{ margin:0; font:16px/1.68 -apple-system,BlinkMacSystemFont,"SF Pro Text",
-      "Segoe UI",sans-serif; color:var(--ink); background:var(--page); }}
-    body::before {{ content:""; position:fixed; inset:0; pointer-events:none;
-      background:radial-gradient(circle at 12% -10%,rgba(10,132,255,.24),transparent 38%),
-      radial-gradient(circle at 92% 8%,rgba(105,190,255,.18),transparent 32%); }}
-    a {{ color:var(--brand); text-underline-offset:3px; }}
-    .shell {{ position:relative; width:min(100% - 32px,900px); margin:auto; }}
-    header {{ padding:22px 0 10px; }}
-    nav {{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }}
-    .brand {{ margin-right:auto; color:var(--ink); font-weight:750; font-size:18px; }}
-    .nav-link,.language {{ padding:7px 11px; border:1px solid var(--line);
-      border-radius:999px; color:var(--muted); background:var(--card);
-      text-decoration:none; font-size:13px; font-weight:650; backdrop-filter:blur(16px); }}
-    .nav-link[aria-current="page"] {{ color:#fff; border-color:var(--brand); background:var(--brand); }}
-    .hero {{ padding:70px 0 42px; text-align:center; }}
-    h1 {{ max-width:760px; margin:0 auto; font-size:clamp(40px,8vw,68px); line-height:1.02;
-      letter-spacing:-.05em; }}
-    .summary {{ max-width:650px; margin:22px auto 16px; color:var(--muted);
-      font-size:clamp(17px,2.5vw,21px); line-height:1.55; }}
-    .date {{ display:inline-block; padding:7px 12px; border-radius:999px;
-      color:var(--muted); background:rgba(10,132,255,.08); font-size:13px; font-weight:650; }}
-    article {{ padding:clamp(25px,6vw,64px); border:1px solid var(--line); border-radius:28px;
-      background:var(--card); box-shadow:var(--shadow); backdrop-filter:blur(24px); }}
-    section + section {{ margin-top:42px; padding-top:38px; border-top:1px solid var(--line); }}
-    h2 {{ margin:0 0 14px; font-size:clamp(23px,4vw,30px); line-height:1.2;
-      letter-spacing:-.025em; }}
-    p {{ margin:12px 0; }}
-    ul {{ margin:14px 0; padding-left:22px; }}
-    li {{ margin:7px 0; padding-left:4px; }}
-    footer {{ display:flex; justify-content:space-between; gap:18px; padding:32px 4px 48px;
-      color:var(--muted); font-size:13px; }}
-    footer a {{ color:inherit; }}
-    @media (max-width:620px) {{ .shell {{ width:min(100% - 22px,900px); }}
-      header {{ padding-top:14px; }} .brand {{ width:100%; margin-bottom:4px; }}
-      .hero {{ padding:48px 10px 32px; }} article {{ border-radius:22px; }}
-      footer {{ flex-direction:column; }} }}
-    @media (prefers-color-scheme:dark) {{ :root {{ --ink:#edf6ff; --muted:#a8b7c8;
-      --page:#10161d; --card:rgba(24,33,43,.86); --line:rgba(180,216,255,.12);
-      --shadow:0 24px 75px rgba(0,0,0,.3); }} body::before {{
-      background:radial-gradient(circle at 12% -10%,rgba(10,132,255,.3),transparent 38%),
-      radial-gradient(circle at 92% 8%,rgba(24,73,120,.28),transparent 32%); }} }}
-    @media print {{ header,footer {{ display:none; }} body {{ background:#fff; }}
-      body::before {{ display:none; }} .hero {{ padding:20px 0; }} article {{ box-shadow:none; }} }}
-  </style>
-</head>
-<body>
-  <div class="shell">
-    <header><nav aria-label="Legal documents">
-      <span class="brand">Telescan</span>
-      <a class="nav-link" aria-current="page" href="/{kind}?lang={language}">{current_label}</a>
-      <a class="nav-link" href="/{other_kind}?lang={language}">{other_label}</a>
-      <a class="language" href="/{kind}?lang={opposite_language}" hreflang="{opposite_language}">{language_name}</a>
-    </nav></header>
-    <main>
-      <div class="hero"><h1>{escape(document.title)}</h1>
-        <p class="summary">{escape(document.summary)}</p>
-        <span class="date">{escape(document.effective_date)}</span></div>
-      <article>{sections}</article>
-    </main>
-    <footer><span>© 2026 Telescan</span><span>
-      <a href="/{other_kind}?lang={language}">{escape(other_document.title)}</a> ·
-      <a href="mailto:admin@tgtelescan.ru">Contact</a></span></footer>
-  </div>
-</body>
-</html>"""
-
-
-def page_response(kind: str, language: str) -> HTMLResponse:
-    return HTMLResponse(
-        content=render_page(kind, language),
-        status_code=status.HTTP_200_OK,
-        headers={
-            "Cache-Control": "public, max-age=3600",
-            "Content-Language": language,
-            "Content-Security-Policy": (
-                "default-src 'none'; style-src 'unsafe-inline'; "
-                "img-src 'self' data:; base-uri 'none'; form-action 'none'; "
-                "frame-ancestors 'none'"
-            ),
-            "Referrer-Policy": "strict-origin-when-cross-origin",
-            "Vary": "Accept-Language",
-            "X-Content-Type-Options": "nosniff",
-        },
+    return _page_template().substitute(
+        current_label=current_label,
+        effective_date=escape(document.effective_date),
+        kind=kind,
+        language=language,
+        language_name=language_name,
+        opposite_language=opposite_language,
+        other_kind=other_kind,
+        other_label=other_label,
+        other_title=escape(other_document.title),
+        sections=sections,
+        summary=escape(document.summary),
+        title=escape(document.title),
     )
-
-
-@legal_router.get("/privacy", response_class=HTMLResponse)
-async def privacy_policy(
-    request: Request,
-    lang: str | None = Query(default=None, max_length=10),
-) -> HTMLResponse:
-    language = resolve_language(lang, request.headers.get("accept-language", ""))
-    return page_response("privacy", language)
-
-
-@legal_router.get("/terms", response_class=HTMLResponse)
-async def terms_of_service(
-    request: Request,
-    lang: str | None = Query(default=None, max_length=10),
-) -> HTMLResponse:
-    language = resolve_language(lang, request.headers.get("accept-language", ""))
-    return page_response("terms", language)

@@ -9,7 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from src.api.routers.auth import logout_current_session
 from src.dependencies.auth import get_current_auth
 from src.domain.entities import AuthContext
-from src.domain.enums import ConfirmationStatus, LinkCodeStatus
+from src.domain.enums import ConfirmationStatus, LinkCodeStatus, TelegramPhotoState
 from src.domain.errors import ConfirmationNotFound, InvalidLinkCode, SessionRevoked
 from src.infrastructure.jwt import TokenService
 from src.services.codes import LinkCodeService
@@ -95,6 +95,37 @@ async def test_issue_continues_when_telegram_photo_upload_fails() -> None:
     user = next(iter(users.users.values()))
     assert user.photo_s3_link is None
     assert len(codes.items) == 1
+
+
+@pytest.mark.asyncio
+async def test_issue_removes_photo_absent_from_telegram() -> None:
+    users = FakeUsers()
+    codes = FakeLinkCodes()
+    storage = FakeStorage()
+    issue = IssueLinkCode(
+        users,
+        codes,
+        LinkCodeService("hmac-secret", 8),
+        PhotoService(storage, 1024),
+        300,
+    )
+    user = await users.upsert_telegram_profile(10, "Ada", "ada")
+    user.photo_s3_link = "https://storage.example/users/old-photo.jpg"
+
+    result = await issue.execute(
+        10,
+        "Ada Updated",
+        "ada_updated",
+        None,
+        datetime.now(UTC),
+        photo_state=TelegramPhotoState.ABSENT,
+    )
+
+    assert len(result.code) == 8
+    assert user.tg_name == "Ada Updated"
+    assert user.tg_username == "ada_updated"
+    assert user.photo_s3_link is None
+    assert "https://storage.example/users/old-photo.jpg" in storage.deleted
 
 
 @pytest.mark.asyncio

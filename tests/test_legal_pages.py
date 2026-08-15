@@ -1,11 +1,8 @@
 import pytest
 from starlette.requests import Request
 
-from src.api.v1.server.routers.legal import (
-    privacy_policy,
-    resolve_language,
-    terms_of_service,
-)
+from src.api.presentation.legal import resolve_language
+from src.api.routers.legal import privacy_policy, terms_of_service
 
 
 def make_request(accept_language: str = "") -> Request:

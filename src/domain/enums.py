@@ -16,3 +16,9 @@ class ConfirmationStatus(StrEnum):
     CONFIRMED = "confirmed"
     CANCELLED = "cancelled"
     EXPIRED = "expired"
+
+
+class TelegramPhotoState(StrEnum):
+    PRESENT = "present"
+    ABSENT = "absent"
+    UNCHANGED = "unchanged"

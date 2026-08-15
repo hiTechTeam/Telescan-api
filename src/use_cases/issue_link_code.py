@@ -2,6 +2,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from src.domain.entities import IssuedLinkCode
+from src.domain.enums import TelegramPhotoState
 from src.domain.errors import LinkCodeCollision
 from src.domain.ports import (
     LegacyCodePublisherPort,
@@ -39,6 +40,7 @@ class IssueLinkCode:
         tg_username: str | None,
         photo: bytes | None,
         now: datetime | None = None,
+        photo_state: TelegramPhotoState = TelegramPhotoState.UNCHANGED,
     ) -> IssuedLinkCode:
         current_time = now or datetime.now(UTC)
         user = await self._users.upsert_telegram_profile(tg_id, tg_name, tg_username)
@@ -59,6 +61,30 @@ class IssueLinkCode:
                     "continuing link-code issuance",
                     getattr(user, "id", "unknown"),
                 )
+        elif photo_state == TelegramPhotoState.ABSENT and getattr(
+            user, "photo_s3_link", None
+        ):
+            old_photo_url = getattr(user, "photo_s3_link")
+            try:
+                user = await self._users.update_photo(str(getattr(user, "id")), None)
+            except Exception:
+                logger.exception(
+                    "Could not clear obsolete Telegram photo for user %s; "
+                    "continuing link-code issuance",
+                    getattr(user, "id", "unknown"),
+                )
+            else:
+                try:
+                    await self._photos.delete_all(
+                        getattr(user, "telescan_id"),
+                        old_photo_url,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Could not delete obsolete Telegram photo objects for user "
+                        "%s; continuing link-code issuance",
+                        getattr(user, "id", "unknown"),
+                    )
 
         user_id = str(getattr(user, "id"))
         await self._link_codes.revoke_issued(user_id, current_time)

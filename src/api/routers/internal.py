@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from src.dependencies.container import Container, get_container
 from src.dependencies.internal import require_internal_service
+from src.domain.enums import TelegramPhotoState
 from src.schemas.internal import (
     ConfirmationDecisionRequest,
     ConfirmationMessageRequest,
@@ -27,6 +28,7 @@ async def issue_link_code(
     tg_name: Annotated[str | None, Form()] = None,
     tg_username: Annotated[str | None, Form()] = None,
     photo: Annotated[UploadFile | None, File()] = None,
+    photo_state: Annotated[TelegramPhotoState, Form()] = TelegramPhotoState.UNCHANGED,
 ) -> InternalLinkCodeResponse:
     await container.rate_limiter.check(
         f"issue-code:{tg_id}", limit=6, window_seconds=300
@@ -35,7 +37,11 @@ async def issue_link_code(
         await photo.read(container.settings.max_photo_bytes + 1) if photo else None
     )
     result = await container.issue_link_code.execute(
-        tg_id, tg_name, tg_username, photo_data
+        tg_id,
+        tg_name,
+        tg_username,
+        photo_data,
+        photo_state=photo_state,
     )
     return InternalLinkCodeResponse(
         code=result.code,

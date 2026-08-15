@@ -8,7 +8,6 @@ from fastapi.responses import ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.api.routers import router as api_router
-from src.api.v1.server.routers.legal import legal_router
 from src.core.config import Settings, settings as default_settings
 from src.dependencies.container import Container, build_container
 from src.domain.errors import (
@@ -51,7 +50,6 @@ def create_app(
         default_response_class=ORJSONResponse,
         lifespan=lifespan,
     )
-    application.include_router(legal_router)
     application.include_router(api_router)
 
     public_directory = Path(__file__).resolve().parents[1] / "public"
