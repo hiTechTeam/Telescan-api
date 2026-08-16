@@ -1,32 +1,56 @@
 name: Deploy Telescan API
 
 on:
+  pull_request:
   push:
     branches:
       - main
   workflow_dispatch:
 
 concurrency:
-  group: production-telescan-api
-  cancel-in-progress: false
+  group: telescan-api-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
   validate:
-    name: Build Docker image
+    name: Validate and build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: |
+          uvx --from ruff==0.16.3 ruff check .
+          uvx --from ruff==0.16.3 ruff format --check .
+
+      - name: Type check
+        run: uvx --from pyright==1.1.411 pyright
+
+      - name: Test
+        run: uv run pytest
+
       - name: Build
         run: docker build --tag telescan-api:ci .
 
   deploy:
     name: Deploy to production
+    if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 15
