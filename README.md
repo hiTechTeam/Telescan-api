@@ -35,6 +35,11 @@ being copied into image layers. The container restarts unless explicitly stopped
 requires a successful bounded MongoDB ping. Production deployment waits for the
 Docker health state to become `healthy`.
 
+The production process runs as the unprivileged `telescan` user. Compose mounts
+the root filesystem read-only, provides only a bounded `/tmp` tmpfs, drops every
+Linux capability, and enables `no-new-privileges`. Application state belongs in
+MongoDB or S3-compatible storage rather than the container filesystem.
+
 For a complete local quality check:
 
 ```sh
@@ -107,8 +112,10 @@ Bot-only API, protected by `Authorization: Bearer $BOT_SERVICE_SECRET`:
 | `GET` | `/internal/v1/confirmations/pending` | Restore pending confirmation timers |
 | `POST` | `/internal/v1/confirmations/{id}/decision` | Confirm, cancel, or expire a request |
 
-Future moderation clients use a separate API credential, never MongoDB access.
-These endpoints are protected by
+The deployed allow-listed
+[Telescan admin bot](https://github.com/hiTechTeam/Telescan-admin-bot) uses a
+separate API credential and never receives MongoDB access. These endpoints are
+protected by
 `Authorization: Bearer $MODERATION_SERVICE_SECRET`:
 
 | Method | Path | Purpose |
@@ -187,3 +194,12 @@ FastAPI Swagger remains enabled, but nginx returns `404` for `/docs`, `/docs/`,
 `/redoc`, and `/openapi.json`. Administrators access Swagger through the API's
 localhost binding and an SSH tunnel documented in
 [Telescan-nginx](https://github.com/hiTechTeam/Telescan-nginx).
+
+## Repository workflow
+
+The `main` branch is protected: changes are merged through pull requests,
+force-pushes and branch deletion are disabled, and unresolved review
+conversations block merging. GitHub secret scanning with push protection,
+vulnerability alerts, and Dependabot security updates are enabled. A merge to
+`main` builds the Docker image, deploys through the production environment, and
+waits for the readiness health check.
