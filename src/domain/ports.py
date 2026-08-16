@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from .enums import ConfirmationStatus
+from .enums import ConfirmationStatus, ReportReason, ReportStatus
 
 
 class UserRepositoryPort(Protocol):
@@ -64,6 +64,39 @@ class ConfirmationRepositoryPort(Protocol):
     ) -> Any | None: ...
     async def get_for_user(self, confirmation_id: UUID, user_id: str) -> Any | None: ...
     async def list_pending(self) -> list[Any]: ...
+    async def delete_for_user(self, user_id: str) -> None: ...
+
+
+class ReportRepositoryPort(Protocol):
+    async def create(
+        self,
+        reporter: Any,
+        target: Any,
+        client_request_id: UUID,
+        reason: ReportReason,
+        details: str | None,
+        now: datetime,
+    ) -> Any: ...
+    async def get_by_public_id(self, report_id: UUID) -> Any | None: ...
+    async def list_by_status(
+        self, status: ReportStatus | None, limit: int
+    ) -> list[Any]: ...
+    async def update_status(
+        self,
+        report_id: UUID,
+        status: ReportStatus,
+        moderator_id: str,
+        note: str | None,
+        now: datetime,
+    ) -> Any | None: ...
+    async def anonymize_user(self, user_id: str) -> None: ...
+
+
+class BlockRepositoryPort(Protocol):
+    async def create(self, blocker_id: str, target: Any, now: datetime) -> Any: ...
+    async def delete(self, blocker_id: str, blocked_telescan_id: UUID) -> bool: ...
+    async def exists_between(self, first_user_id: str, second_user_id: str) -> bool: ...
+    async def list_for_user(self, blocker_id: str) -> list[Any]: ...
     async def delete_for_user(self, user_id: str) -> None: ...
 
 

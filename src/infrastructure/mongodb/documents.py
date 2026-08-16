@@ -2,9 +2,15 @@ from uuid import UUID, uuid4
 
 from beanie import Document, PydanticObjectId
 from pydantic import AwareDatetime, Field
-from pymongo import ASCENDING, IndexModel
+from pymongo import ASCENDING, DESCENDING, IndexModel
 
-from src.domain.enums import ConfirmationAction, ConfirmationStatus, LinkCodeStatus
+from src.domain.enums import (
+    ConfirmationAction,
+    ConfirmationStatus,
+    LinkCodeStatus,
+    ReportReason,
+    ReportStatus,
+)
 
 
 class UserDocument(Document):
@@ -96,9 +102,97 @@ class ConfirmationRequestDocument(Document):
         ]
 
 
+class ReportDocument(Document):
+    public_id: UUID = Field(default_factory=uuid4)
+    client_request_id: UUID
+    reporter_id: PydanticObjectId | None
+    reporter_telescan_id: UUID | None
+    target_id: PydanticObjectId | None
+    target_telescan_id: UUID
+    reason: ReportReason
+    details: str | None = None
+    target_name: str | None = None
+    target_username: str | None = None
+    target_photo_url: str | None = None
+    status: ReportStatus = ReportStatus.PENDING
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    resolved_at: AwareDatetime | None = None
+    retention_until: AwareDatetime | None = None
+    moderator_id: str | None = None
+    moderator_note: str | None = None
+
+    class Settings:
+        name = "reports"
+        indexes = [
+            IndexModel([("public_id", ASCENDING)], unique=True, name="uniq_public_id"),
+            IndexModel(
+                [("reporter_id", ASCENDING), ("client_request_id", ASCENDING)],
+                unique=True,
+                name="uniq_reporter_request",
+                partialFilterExpression={"reporter_id": {"$type": "objectId"}},
+            ),
+            IndexModel(
+                [
+                    ("reporter_id", ASCENDING),
+                    ("target_id", ASCENDING),
+                    ("reason", ASCENDING),
+                    ("status", ASCENDING),
+                ],
+                unique=True,
+                name="uniq_pending_report",
+                partialFilterExpression={
+                    "reporter_id": {"$type": "objectId"},
+                    "target_id": {"$type": "objectId"},
+                    "status": ReportStatus.PENDING,
+                },
+            ),
+            IndexModel(
+                [("status", ASCENDING), ("created_at", DESCENDING)],
+                name="status_created",
+            ),
+            IndexModel(
+                [("target_telescan_id", ASCENDING), ("created_at", DESCENDING)],
+                name="target_created",
+            ),
+            IndexModel(
+                [("retention_until", ASCENDING)],
+                expireAfterSeconds=0,
+                name="ttl_retention_until",
+            ),
+        ]
+
+
+class BlockDocument(Document):
+    blocker_id: PydanticObjectId
+    blocked_id: PydanticObjectId
+    blocked_telescan_id: UUID
+    blocked_name: str | None = None
+    blocked_username: str | None = None
+    blocked_photo_url: str | None = None
+    created_at: AwareDatetime
+
+    class Settings:
+        name = "blocks"
+        indexes = [
+            IndexModel(
+                [("blocker_id", ASCENDING), ("blocked_id", ASCENDING)],
+                unique=True,
+                name="uniq_blocker_blocked",
+            ),
+            IndexModel(
+                [("blocker_id", ASCENDING), ("created_at", DESCENDING)],
+                name="blocker_created",
+            ),
+            IndexModel([("blocked_id", ASCENDING)], name="blocked_user"),
+        ]
+
+
 DOCUMENT_MODELS = [
     UserDocument,
     LinkCodeDocument,
     DeviceSessionDocument,
     ConfirmationRequestDocument,
+    ReportDocument,
+    BlockDocument,
 ]

@@ -1,9 +1,13 @@
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
-from src.domain.enums import ConfirmationStatus, LinkCodeStatus
+from src.domain.enums import (
+    ConfirmationStatus,
+    LinkCodeStatus,
+    ReportStatus,
+)
 from src.domain.errors import LinkCodeCollision
 
 
@@ -213,6 +217,146 @@ class FakeConfirmations:
         self.items = {
             key: value for key, value in self.items.items() if value.user_id != user_id
         }
+
+
+class FakeReports:
+    def __init__(self) -> None:
+        self.items: dict[UUID, SimpleNamespace] = {}
+
+    async def create(
+        self,
+        reporter,
+        target,
+        client_request_id,
+        reason,
+        details,
+        now,
+    ):
+        existing = next(
+            (
+                item
+                for item in self.items.values()
+                if item.reporter_id == str(reporter.id)
+                and item.target_id == str(target.id)
+                and item.reason == reason
+                and item.status == ReportStatus.PENDING
+            ),
+            None,
+        )
+        if existing is not None:
+            return existing
+        item = SimpleNamespace(
+            public_id=uuid4(),
+            client_request_id=client_request_id,
+            reporter_id=str(reporter.id),
+            reporter_telescan_id=reporter.telescan_id,
+            target_id=str(target.id),
+            target_telescan_id=target.telescan_id,
+            reason=reason,
+            details=details,
+            target_name=target.tg_name,
+            target_username=target.tg_username,
+            target_photo_url=target.photo_s3_link,
+            status=ReportStatus.PENDING,
+            created_at=now,
+            updated_at=now,
+            resolved_at=None,
+            retention_until=None,
+            moderator_id=None,
+            moderator_note=None,
+        )
+        self.items[item.public_id] = item
+        return item
+
+    async def get_by_public_id(self, report_id):
+        return self.items.get(report_id)
+
+    async def list_by_status(self, status, limit):
+        items = sorted(
+            self.items.values(), key=lambda item: item.created_at, reverse=True
+        )
+        if status is not None:
+            items = [item for item in items if item.status == status]
+        return items[:limit]
+
+    async def update_status(self, report_id, status, moderator_id, note, now):
+        item = self.items.get(report_id)
+        if item is None:
+            return None
+        item.status = status
+        item.moderator_id = moderator_id
+        item.moderator_note = note
+        item.updated_at = now
+        item.resolved_at = None if status == ReportStatus.REVIEWING else now
+        item.retention_until = (
+            None if status == ReportStatus.REVIEWING else now + timedelta(days=180)
+        )
+        return item
+
+    async def anonymize_user(self, user_id):
+        for item in self.items.values():
+            if item.reporter_id == user_id:
+                item.reporter_id = None
+                item.reporter_telescan_id = None
+            if item.target_id == user_id:
+                item.target_id = None
+
+
+class FakeBlocks:
+    def __init__(self) -> None:
+        self.items: list[SimpleNamespace] = []
+
+    async def create(self, blocker_id, target, now):
+        existing = next(
+            (
+                item
+                for item in self.items
+                if item.blocker_id == blocker_id and item.blocked_id == str(target.id)
+            ),
+            None,
+        )
+        if existing is not None:
+            return existing
+        item = SimpleNamespace(
+            blocker_id=blocker_id,
+            blocked_id=str(target.id),
+            blocked_telescan_id=target.telescan_id,
+            blocked_name=target.tg_name,
+            blocked_username=target.tg_username,
+            blocked_photo_url=target.photo_s3_link,
+            created_at=now,
+        )
+        self.items.append(item)
+        return item
+
+    async def delete(self, blocker_id, blocked_telescan_id):
+        before = len(self.items)
+        self.items = [
+            item
+            for item in self.items
+            if not (
+                item.blocker_id == blocker_id
+                and item.blocked_telescan_id == blocked_telescan_id
+            )
+        ]
+        return len(self.items) != before
+
+    async def exists_between(self, first_user_id, second_user_id):
+        return any(
+            (item.blocker_id == first_user_id and item.blocked_id == second_user_id)
+            or (item.blocker_id == second_user_id and item.blocked_id == first_user_id)
+            for item in self.items
+        )
+
+    async def list_for_user(self, blocker_id):
+        return [item for item in self.items if item.blocker_id == blocker_id]
+
+    async def delete_for_user(self, user_id):
+        self.items = [
+            item
+            for item in self.items
+            if item.blocker_id != user_id and item.blocked_id != user_id
+        ]
 
 
 class FakeStorage:

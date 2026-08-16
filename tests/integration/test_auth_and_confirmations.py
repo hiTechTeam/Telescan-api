@@ -25,8 +25,10 @@ from src.use_cases.issue_link_code import IssueLinkCode
 from src.use_cases.profiles import DeleteAccount
 from tests.fakes import (
     FakeBot,
+    FakeBlocks,
     FakeConfirmations,
     FakeLinkCodes,
+    FakeReports,
     FakeSessions,
     FakeStorage,
     FakeUsers,
@@ -245,6 +247,8 @@ async def test_account_deletion_cleans_domain_data_and_photos_separately_from_lo
         codes,
         sessions,
         confirmations,
+        FakeReports(),
+        FakeBlocks(),
         PhotoService(storage, 1024),
     )
 

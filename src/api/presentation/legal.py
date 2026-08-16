@@ -25,7 +25,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "How Telescan processes account, profile-photo, and nearby "
                 "discovery data — and how you stay in control."
             ),
-            effective_date="Effective August 15, 2026",
+            effective_date="Effective August 16, 2026",
             sections=(
                 (
                     "Overview",
@@ -49,7 +49,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<ul><li>Telegram ID, first name, and username</li>"
                     "<li>Random Telescan ID and active device sessions</li>"
                     "<li>Temporary keyed hashes of one-time linking codes</li>"
-                    "<li>Telegram or user-selected profile photo</li></ul>",
+                    "<li>Telegram or user-selected profile photo</li>"
+                    "<li>Reports, blocks, and moderation records you create</li></ul>",
                 ),
                 (
                     "Nearby discovery",
@@ -57,7 +58,20 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "your random Telescan ID over Bluetooth Low Energy. Nearby "
                     "Telescan devices use it to request the profile you share. "
                     "Signal strength and approximate distance are processed "
-                    "locally and are not sent to the Telescan server.</p>",
+                    "locally and are not sent to the Telescan server. Blocked "
+                    "Telescan IDs are cached locally so blocked profiles stay "
+                    "hidden during network outages.</p>",
+                ),
+                (
+                    "Reports and blocks",
+                    "<p>A report stores the reporter and target Telescan IDs, "
+                    "reason, optional comment, a snapshot of the target name, "
+                    "username and photo URL, review status, timestamps, and "
+                    "moderator audit fields. The target is not shown the "
+                    "reporter's identity.</p><p>A block stores the account "
+                    "relationship, target profile snapshot, and creation time. "
+                    "It hides profile access in both directions and can be "
+                    "removed from the app.</p>",
                 ),
                 (
                     "Data we do not collect",
@@ -70,11 +84,13 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Use and sharing",
                     "<p>Account data is used only to register users, display "
                     "shared profiles, manage profile photos, operate nearby "
-                    "discovery, and maintain the service. Telescan does not "
+                    "discovery, process reports and blocks, prevent abuse, "
+                    "and maintain the service. Telescan does not "
                     "sell personal data.</p>"
                     "<p>Data is disclosed only to nearby users when you enable "
                     "discoverability, to infrastructure providers required to "
-                    "operate the service, or when required by law.</p>",
+                    "operate the service, to authorized moderators reviewing "
+                    "reports, or when required by law.</p>",
                 ),
                 (
                     "Security and retention",
@@ -86,7 +102,10 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "rollout, an additional SHA-256 code hash may be retained "
                     "for the older app and is removed after that rollout. "
                     "Account records and stored profile photos "
-                    "remain until you delete the Telescan account.</p>"
+                    "remain until you delete the Telescan account. Blocks "
+                    "remain until unblocked or account deletion. Pending "
+                    "reports remain until a decision; resolved or dismissed "
+                    "reports expire after 180 days.</p>"
                     "<p>Standard request metadata such as IP address, time, "
                     "path, and response status may be processed for delivery, "
                     "reliability, and security — never for advertising or "
@@ -96,14 +115,17 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Account and data deletion",
                     "<p>Open your profile in the app, select <strong>Delete "
                     "account</strong>, and confirm. Telescan removes the live "
-                    "account record, linking codes, device sessions, stored "
-                    "photos, and local account data and caches. This operation "
+                    "account record, linking codes, device sessions, blocks, "
+                    "stored photos, and local account data and caches. Report "
+                    "relations are removed and retained snapshots follow the "
+                    "limited moderation period. This operation "
                     "cannot be undone and does not affect your Telegram account.</p>",
                 ),
                 (
                     "Your choices",
                     "<p>You can disable discoverability, replace or remove your "
-                    "profile photo, sign out the current device, or delete "
+                    "profile photo, report or block profiles, manage blocked "
+                    "profiles, sign out the current device, or delete "
                     "your account and all its sessions. Depending on applicable law, "
                     "you may also have rights to access, correct, restrict, or "
                     "object to processing of personal data.</p>"
@@ -126,7 +148,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Как Telescan обрабатывает данные аккаунта, фотографии и "
                 "поиска людей рядом — и как вы ими управляете."
             ),
-            effective_date="Действует с 15 августа 2026 года",
+            effective_date="Действует с 16 августа 2026 года",
             sections=(
                 (
                     "Общие положения",
@@ -151,7 +173,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<ul><li>Telegram ID, имя и username</li>"
                     "<li>Случайный Telescan ID и активные сессии устройств</li>"
                     "<li>Временные ключевые хеши одноразовых кодов привязки</li>"
-                    "<li>Фотография из Telegram или выбранная вами</li></ul>",
+                    "<li>Фотография из Telegram или выбранная вами</li>"
+                    "<li>Созданные вами жалобы, блокировки и записи модерации</li></ul>",
                 ),
                 (
                     "Поиск людей рядом",
@@ -159,7 +182,18 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "случайный Telescan ID через Bluetooth Low Energy. Устройства Telescan "
                     "рядом используют его, чтобы запросить опубликованный вами "
                     "профиль. Сила сигнала и примерное расстояние обрабатываются "
-                    "локально и не отправляются на сервер Telescan.</p>",
+                    "локально и не отправляются на сервер Telescan. Telescan ID "
+                    "заблокированных профилей кешируются локально, чтобы они "
+                    "не появлялись без сети.</p>",
+                ),
+                (
+                    "Жалобы и блокировки",
+                    "<p>Жалоба содержит Telescan ID отправителя и цели, причину, "
+                    "необязательный комментарий, снимок имени, username и URL "
+                    "фотографии цели, статус, время и аудит модератора. Цель не "
+                    "видит личность отправителя.</p><p>Блокировка содержит связь "
+                    "аккаунтов, снимок профиля цели и время. Она скрывает "
+                    "профили в обоих направлениях и может быть отменена в приложении.</p>",
                 ),
                 (
                     "Что мы не собираем",
@@ -172,11 +206,13 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Использование и передача",
                     "<p>Данные аккаунта используются только для регистрации, "
                     "показа опубликованных профилей, управления фотографиями, "
-                    "поиска людей рядом и поддержки сервиса. Telescan не продаёт "
+                    "поиска людей рядом, обработки жалоб и блокировок, "
+                    "предотвращения злоупотреблений и поддержки сервиса. Telescan не продаёт "
                     "персональные данные.</p>"
                     "<p>Данные раскрываются только пользователям рядом при "
                     "включённой видимости, поставщикам инфраструктуры для работы "
-                    "сервиса или когда этого требует закон.</p>",
+                    "сервиса, уполномоченным модераторам для рассмотрения жалоб "
+                    "или когда этого требует закон.</p>",
                 ),
                 (
                     "Безопасность и хранение",
@@ -188,7 +224,9 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "переходного периода для старой версии приложения может "
                     "дополнительно храниться SHA-256-хеш кода; после перехода "
                     "он удаляется. Запись аккаунта и фотографии "
-                    "хранятся до удаления аккаунта Telescan.</p>"
+                    "хранятся до удаления аккаунта Telescan. Блокировки "
+                    "хранятся до разблокировки или удаления аккаунта. Жалобы "
+                    "до решения, а закрытые жалобы удаляются через 180 дней.</p>"
                     "<p>Стандартные данные запросов — IP-адрес, время, путь и "
                     "статус ответа — могут обрабатываться для доставки, "
                     "надёжности и безопасности, но не для рекламы или "
@@ -198,15 +236,18 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Удаление аккаунта и данных",
                     "<p>Откройте профиль в приложении, выберите <strong>Удалить "
                     "аккаунт</strong> и подтвердите действие. Telescan удалит "
-                    "активную запись аккаунта, коды привязки, сессии устройств, "
+                    "активную запись аккаунта, коды привязки, сессии устройств, блокировки, "
                     "сохранённые фотографии, "
-                    "локальные данные и кеши. Операцию нельзя отменить; аккаунт "
+                    "локальные данные и кеши. Связь жалоб с удалённым аккаунтом "
+                    "удаляется, а снимки профиля хранятся только в пределах "
+                    "срока модерации. Операцию нельзя отменить; аккаунт "
                     "Telegram при этом не изменяется.</p>",
                 ),
                 (
                     "Ваш выбор",
                     "<p>Вы можете отключить видимость, заменить или удалить "
-                    "фотографию, выйти на текущем устройстве или удалить "
+                    "фотографию, пожаловаться или заблокировать профиль, "
+                    "управлять блокировками, выйти на текущем устройстве или удалить "
                     "аккаунт и все его сессии. "
                     "В зависимости от применимого законодательства вы также "
                     "можете иметь право на доступ, исправление, ограничение или "
@@ -233,7 +274,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "The essential terms for using the Telescan app, bot, API, "
                 "and related services."
             ),
-            effective_date="Effective August 15, 2026",
+            effective_date="Effective August 16, 2026",
             sections=(
                 (
                     "Agreement",
@@ -265,7 +306,11 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "have the right to use.</p>"
                     "<p>Your profile is available to nearby users only while "
                     "discoverability is enabled, although radio identifiers can "
-                    "be observed or replayed by devices in range.</p>",
+                    "be observed or replayed by devices in range.</p>"
+                    "<p>You may report or block a profile. Blocking hides "
+                    "profile access in both directions until you unblock it. "
+                    "Reports must be submitted in good faith and contain only "
+                    "relevant information.</p>",
                 ),
                 (
                     "Acceptable use",
@@ -273,6 +318,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<li>Harass, stalk, threaten, impersonate, deceive, or harm</li>"
                     "<li>Collect, publish, or misuse another person’s data</li>"
                     "<li>Upload unlawful or rights-infringing content</li>"
+                    "<li>Submit knowingly false or retaliatory reports</li>"
                     "<li>Probe, disrupt, overload, bypass, or interfere with the service</li>"
                     "<li>Use automation or reverse engineering unlawfully</li>"
                     "</ul><p>We may restrict access when reasonably necessary to "
@@ -322,7 +368,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Основные условия использования приложения Telescan, бота, "
                 "API и связанных сервисов."
             ),
-            effective_date="Действуют с 15 августа 2026 года",
+            effective_date="Действуют с 16 августа 2026 года",
             sections=(
                 (
                     "Согласие с условиями",
@@ -355,7 +401,11 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "использование которого у вас есть права.</p>"
                     "<p>Профиль доступен пользователям рядом только при "
                     "включённой видимости, однако радиоидентификаторы могут быть "
-                    "перехвачены или повторены устройствами в зоне сигнала.</p>",
+                    "перехвачены или повторены устройствами в зоне сигнала.</p>"
+                    "<p>Вы можете пожаловаться на профиль или заблокировать его. "
+                    "Блокировка скрывает профили в обоих направлениях до "
+                    "разблокировки. Жалобы должны подаваться добросовестно и "
+                    "содержать только относящуюся к нарушению информацию.</p>",
                 ),
                 (
                     "Допустимое использование",
@@ -363,6 +413,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<li>Преследовать, запугивать, выдавать себя за другого или причинять вред</li>"
                     "<li>Собирать, публиковать или неправомерно использовать чужие данные</li>"
                     "<li>Загружать незаконный контент или нарушать чужие права</li>"
+                    "<li>Отправлять заведомо ложные жалобы или использовать их для мести</li>"
                     "<li>Исследовать, нарушать, перегружать или обходить защиту сервиса</li>"
                     "<li>Незаконно применять автоматизацию или обратную разработку</li>"
                     "</ul><p>Мы можем ограничить доступ, когда это обоснованно "

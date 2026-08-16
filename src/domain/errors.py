@@ -44,3 +44,11 @@ class ExternalServiceUnavailable(TelescanError):
 
 class RateLimitExceeded(TelescanError):
     pass
+
+
+class InvalidModerationAction(TelescanError):
+    pass
+
+
+class ModerationItemNotFound(TelescanError):
+    pass

@@ -15,8 +15,10 @@ from src.domain.errors import (
     ExternalServiceUnavailable,
     ForbiddenConfirmation,
     InvalidLinkCode,
+    InvalidModerationAction,
     InvalidPhoto,
     InvalidToken,
+    ModerationItemNotFound,
     RateLimitExceeded,
     RefreshTokenReused,
     SessionRevoked,
@@ -60,7 +62,7 @@ def create_app(
             CORSMiddleware,
             allow_origins=active_settings.cors_origins,
             allow_credentials=False,
-            allow_methods=["GET", "POST", "PUT", "DELETE"],
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
             allow_headers=["Authorization", "Content-Type"],
         )
 
@@ -83,6 +85,7 @@ def create_app(
 
     @application.exception_handler(UserNotFound)
     @application.exception_handler(ConfirmationNotFound)
+    @application.exception_handler(ModerationItemNotFound)
     async def not_found(_: Request, __: Exception) -> ORJSONResponse:
         return ORJSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -98,6 +101,15 @@ def create_app(
 
     @application.exception_handler(InvalidPhoto)
     async def invalid_photo(_: Request, error: InvalidPhoto) -> ORJSONResponse:
+        return ORJSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": str(error)},
+        )
+
+    @application.exception_handler(InvalidModerationAction)
+    async def invalid_moderation_action(
+        _: Request, error: InvalidModerationAction
+    ) -> ORJSONResponse:
         return ORJSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": str(error)},

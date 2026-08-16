@@ -3,8 +3,10 @@ from fastapi import APIRouter
 from .auth import router as auth_router
 from .health import router as health_router
 from .internal import router as internal_router
+from .internal_moderation import router as internal_moderation_router
 from .legal import router as legal_router
 from .legacy import router as legacy_router
+from .moderation import router as moderation_router
 from .profiles import router as profiles_router
 from .users import router as users_router
 
@@ -14,7 +16,9 @@ router.include_router(legal_router)
 router.include_router(auth_router)
 router.include_router(users_router)
 router.include_router(profiles_router)
+router.include_router(moderation_router)
 router.include_router(internal_router)
+router.include_router(internal_moderation_router)
 router.include_router(legacy_router)
 
 __all__ = ["router"]

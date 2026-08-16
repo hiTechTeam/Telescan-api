@@ -8,8 +8,10 @@ from src.infrastructure.jwt import TokenService
 from src.infrastructure.rate_limit import InMemoryRateLimiter
 from src.infrastructure.s3 import S3PhotoStorage
 from src.repositories import (
+    BlockRepository,
     ConfirmationRepository,
     LinkCodeRepository,
+    ReportRepository,
     SessionRepository,
     UserRepository,
 )
@@ -30,6 +32,15 @@ from src.use_cases.confirmations import (
 )
 from src.use_cases.issue_link_code import IssueLinkCode
 from src.use_cases.legacy import LegacyCompatibility
+from src.use_cases.moderation import (
+    BlockUser,
+    GetReport,
+    ListBlockedUsers,
+    ListReports,
+    SubmitReport,
+    UnblockUser,
+    UpdateReportStatus,
+)
 from src.use_cases.profiles import (
     DeleteAccount,
     GetOwnProfile,
@@ -57,6 +68,13 @@ class Container:
     get_public_profile: GetPublicProfile
     update_own_photo: UpdateOwnPhoto
     delete_account: DeleteAccount
+    submit_report: SubmitReport
+    block_user: BlockUser
+    unblock_user: UnblockUser
+    list_blocked_users: ListBlockedUsers
+    list_reports: ListReports
+    get_report: GetReport
+    update_report_status: UpdateReportStatus
     legacy: LegacyCompatibility
 
 
@@ -65,6 +83,8 @@ def build_container(settings: Settings) -> Container:
     link_codes = LinkCodeRepository()
     sessions = SessionRepository()
     confirmations = ConfirmationRepository()
+    reports = ReportRepository()
+    blocks = BlockRepository()
     legacy_repository = LegacyRepository()
     code_service = LinkCodeService(
         settings.link_code_hmac_secret, settings.link_code_length
@@ -87,7 +107,15 @@ def build_container(settings: Settings) -> Container:
         settings.internal_request_timeout_seconds,
     )
     update_own_photo = UpdateOwnPhoto(users, photos)
-    delete_account = DeleteAccount(users, link_codes, sessions, confirmations, photos)
+    delete_account = DeleteAccount(
+        users,
+        link_codes,
+        sessions,
+        confirmations,
+        reports,
+        blocks,
+        photos,
+    )
     return Container(
         settings=settings,
         users=users,
@@ -119,9 +147,16 @@ def build_container(settings: Settings) -> Container:
         list_pending_confirmations=ListPendingConfirmations(confirmations),
         register_confirmation_message=RegisterConfirmationMessage(confirmations),
         get_own_profile=GetOwnProfile(users),
-        get_public_profile=GetPublicProfile(users),
+        get_public_profile=GetPublicProfile(users, blocks),
         update_own_photo=update_own_photo,
         delete_account=delete_account,
+        submit_report=SubmitReport(users, reports),
+        block_user=BlockUser(users, blocks),
+        unblock_user=UnblockUser(blocks),
+        list_blocked_users=ListBlockedUsers(blocks),
+        list_reports=ListReports(reports),
+        get_report=GetReport(reports),
+        update_report_status=UpdateReportStatus(reports),
         legacy=LegacyCompatibility(
             legacy_repository, users, update_own_photo, delete_account
         ),

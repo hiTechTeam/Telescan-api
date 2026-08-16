@@ -1,7 +1,11 @@
 from scripts.migrate_users import migrate_users
 from src.app import create_app
 from src.core.config import Settings
-from src.infrastructure.mongodb.documents import UserDocument
+from src.infrastructure.mongodb.documents import (
+    BlockDocument,
+    ReportDocument,
+    UserDocument,
+)
 from src.schemas.users import ProfileResponse
 
 
@@ -50,6 +54,15 @@ def test_own_profile_contract_cannot_target_another_user() -> None:
         "/api/v1/auth/logout-all/requests/{confirmation_id}"
     ]["get"]
     assert status_operation["security"] == [{"HTTPBearer": []}]
+    assert schema["paths"]["/api/v1/reports"]["post"]["security"] == [
+        {"HTTPBearer": []}
+    ]
+    assert schema["paths"]["/api/v1/users/me/blocks"]["get"]["security"] == [
+        {"HTTPBearer": []}
+    ]
+    assert schema["paths"]["/internal/v1/moderation/reports"]["get"]["security"] == [
+        {"HTTPBearer": []}
+    ]
 
 
 def test_user_has_unique_telescan_and_telegram_indexes() -> None:
@@ -60,6 +73,24 @@ def test_user_has_unique_telescan_and_telegram_indexes() -> None:
     )
     assert any(
         index.get("unique") and index.get("name") == "uniq_tg_id" for index in documents
+    )
+
+
+def test_moderation_documents_have_deduplication_and_lookup_indexes() -> None:
+    report_indexes = [index.document for index in ReportDocument.Settings.indexes]
+    block_indexes = [index.document for index in BlockDocument.Settings.indexes]
+
+    assert any(
+        index.get("unique") and index.get("name") == "uniq_reporter_request"
+        for index in report_indexes
+    )
+    assert any(
+        index.get("unique") and index.get("name") == "uniq_pending_report"
+        for index in report_indexes
+    )
+    assert any(
+        index.get("unique") and index.get("name") == "uniq_blocker_blocked"
+        for index in block_indexes
     )
 
 

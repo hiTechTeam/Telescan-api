@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     bot_service_secret: str = Field(
         default="development-service-secret-change-me", min_length=32
     )
+    moderation_service_secret: str = Field(
+        default="development-moderation-secret-change-me", min_length=32
+    )
     jwt_issuer: str = "telescan-api"
     access_token_ttl_seconds: int = Field(default=900, ge=300, le=3600)
     refresh_token_ttl_seconds: int = Field(default=2_592_000, ge=86_400)
@@ -71,6 +74,7 @@ class Settings(BaseSettings):
             self.jwt_secret.startswith("development-"),
             self.link_code_hmac_secret.startswith("development-"),
             self.bot_service_secret.startswith("development-"),
+            self.moderation_service_secret.startswith("development-"),
         )
         if any(insecure):
             raise ValueError("Production secrets must be explicitly configured")

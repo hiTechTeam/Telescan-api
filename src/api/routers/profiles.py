@@ -16,14 +16,14 @@ router = APIRouter(prefix="/api/v1/profiles", tags=["profiles"])
 async def get_public_profile(
     telescan_id: UUID,
     request: Request,
-    _auth: Annotated[AuthContext, Depends(get_current_auth)],
+    auth: Annotated[AuthContext, Depends(get_current_auth)],
     container: Annotated[Container, Depends(get_container)],
 ) -> ProfileResponse:
     client = request.client.host if request.client else "unknown"
     await container.rate_limiter.check(
         f"profile:{client}", limit=120, window_seconds=60
     )
-    user = await container.get_public_profile.execute(telescan_id)
+    user = await container.get_public_profile.execute(auth.user_id, telescan_id)
     return ProfileResponse(
         telescan_id=getattr(user, "telescan_id"),
         name=getattr(user, "tg_name", None),

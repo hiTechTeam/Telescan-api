@@ -22,3 +22,18 @@ class TelegramPhotoState(StrEnum):
     PRESENT = "present"
     ABSENT = "absent"
     UNCHANGED = "unchanged"
+
+
+class ReportReason(StrEnum):
+    SPAM = "spam"
+    HARASSMENT = "harassment"
+    INAPPROPRIATE = "inappropriate"
+    IMPERSONATION = "impersonation"
+    OTHER = "other"
+
+
+class ReportStatus(StrEnum):
+    PENDING = "pending"
+    REVIEWING = "reviewing"
+    RESOLVED = "resolved"
+    DISMISSED = "dismissed"

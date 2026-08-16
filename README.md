@@ -93,6 +93,10 @@ Authenticated iOS API:
 | `DELETE` | `/api/v1/users/me/photo` | Remove the current account photo |
 | `DELETE` | `/api/v1/users/me` | Delete the account and owned data |
 | `GET` | `/api/v1/profiles/{telescan_id}` | Read a nearby public profile |
+| `POST` | `/api/v1/reports` | Submit an idempotent profile report |
+| `GET` | `/api/v1/users/me/blocks` | List blocked profiles |
+| `PUT` | `/api/v1/users/me/blocks/{telescan_id}` | Block a profile |
+| `DELETE` | `/api/v1/users/me/blocks/{telescan_id}` | Unblock a profile |
 
 Bot-only API, protected by `Authorization: Bearer $BOT_SERVICE_SECRET`:
 
@@ -102,6 +106,16 @@ Bot-only API, protected by `Authorization: Bearer $BOT_SERVICE_SECRET`:
 | `PUT` | `/internal/v1/confirmations/{id}/message` | Save the Telegram confirmation message IDs |
 | `GET` | `/internal/v1/confirmations/pending` | Restore pending confirmation timers |
 | `POST` | `/internal/v1/confirmations/{id}/decision` | Confirm, cancel, or expire a request |
+
+Future moderation clients use a separate API credential, never MongoDB access.
+These endpoints are protected by
+`Authorization: Bearer $MODERATION_SERVICE_SECRET`:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/internal/v1/moderation/reports` | List reports, optionally filtered by status |
+| `GET` | `/internal/v1/moderation/reports/{id}` | Read a report and its captured profile snapshot |
+| `PATCH` | `/internal/v1/moderation/reports/{id}` | Record review state, moderator actor, and note |
 
 Legacy `/v1` routes are hidden from OpenAPI and are registered only when
 `ENABLE_LEGACY_API=true`. Keep this compatibility window short.
@@ -116,18 +130,24 @@ rendering live in `src/api/presentation`, while the HTML shell is kept in
 
 ## Data ownership and deletion
 
-MongoDB contains four application collections: `users`, `link_codes`,
-`device_sessions`, and `confirmation_requests`. The API also owns the
+MongoDB contains six application collections: `users`, `link_codes`,
+`device_sessions`, `confirmation_requests`, `reports`, and `blocks`. Reports
+capture the reporter and target Telescan IDs, reason, optional context, target
+profile snapshot, moderation status, actor, and timestamps. Blocks are unique
+per blocker/target pair and profile reads return `404` when either account has
+blocked the other. The API also owns the
 `users/{telescan_id}/...` photo prefix in S3-compatible storage.
 
 Account deletion first revokes all sessions, then removes photos, link codes,
-confirmation requests, device sessions, and finally the user record. A storage
-failure therefore cannot leave a usable authenticated session.
+confirmation requests, block relationships, device sessions, and finally the
+user record. Abuse reports are retained for moderation, but direct account
+relations are removed; resolved or dismissed reports expire through a 180-day
+TTL. A storage failure therefore cannot leave a usable authenticated session.
 
-The built-in rate limiter currently protects link, refresh, profile lookup, and
-code-issuance flows in one API process. It is memory-backed and is not shared
-between replicas; a distributed adapter is still required before horizontal
-scaling.
+The built-in rate limiter currently protects link, refresh, profile lookup,
+report, block, and code-issuance flows in one API process. It is memory-backed
+and is not shared between replicas; a distributed adapter is still required
+before horizontal scaling.
 
 ## Migration from the legacy model
 
@@ -156,8 +176,9 @@ before removing those fields.
 ## Production boundary
 
 Production startup rejects built-in development secrets and requires an
-explicit, non-wildcard CORS allow-list. Keep `BOT_SERVICE_SECRET` private and
-block `/internal/` at every public proxy.
+explicit, non-wildcard CORS allow-list. Keep `BOT_SERVICE_SECRET` and the
+separate `MODERATION_SERVICE_SECRET` private and block `/internal/` at every
+public proxy.
 
 FastAPI Swagger remains enabled, but nginx returns `404` for `/docs`, `/docs/`,
 `/redoc`, and `/openapi.json`. Administrators access Swagger through the API's
