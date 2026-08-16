@@ -2,7 +2,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 
 from src.dependencies.auth import get_current_auth
 from src.dependencies.container import Container, get_container
@@ -15,13 +15,11 @@ router = APIRouter(prefix="/api/v1/profiles", tags=["profiles"])
 @router.get("/{telescan_id}", response_model=ProfileResponse)
 async def get_public_profile(
     telescan_id: UUID,
-    request: Request,
     auth: Annotated[AuthContext, Depends(get_current_auth)],
     container: Annotated[Container, Depends(get_container)],
 ) -> ProfileResponse:
-    client = request.client.host if request.client else "unknown"
     await container.rate_limiter.check(
-        f"profile:{client}", limit=120, window_seconds=60
+        f"profile:{auth.user_id}", limit=120, window_seconds=60
     )
     user = await container.get_public_profile.execute(auth.user_id, telescan_id)
     return ProfileResponse(

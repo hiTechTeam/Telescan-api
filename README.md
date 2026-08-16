@@ -147,7 +147,10 @@ TTL. A storage failure therefore cannot leave a usable authenticated session.
 The built-in rate limiter currently protects link, refresh, profile lookup,
 report, block, and code-issuance flows in one API process. It is memory-backed
 and is not shared between replicas; a distributed adapter is still required
-before horizontal scaling.
+before horizontal scaling. Link attempts are scoped to a device, refreshes to a
+non-reversible token digest, and authenticated profile lookups to the requesting
+user, so nginx's private container address cannot collapse every user into one
+shared public rate-limit bucket.
 
 ## Migration from the legacy model
 
