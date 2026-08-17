@@ -56,6 +56,9 @@ jobs:
     timeout-minutes: 15
     environment: production
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
@@ -66,6 +69,21 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
 
+      - name: Upload release
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          TARGET_DIR=/home/ubuntu/telescan/Telescan-api
+
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+            "$SERVER_USER@$SERVER_HOST" "mkdir -p '$TARGET_DIR'"
+          rsync -az --delete \
+            --exclude '.env' \
+            --exclude '.git' \
+            -e 'ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes' \
+            ./ "$SERVER_USER@$SERVER_HOST:$TARGET_DIR/"
+
       - name: Deploy API
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -74,9 +92,7 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" <<'REMOTE'
           set -Eeuo pipefail
           cd /home/ubuntu/telescan/Telescan-api
-          test -z "$(git status --porcelain)"
-          git fetch origin main
-          git merge --ff-only origin/main
+          test -s .env
           docker compose config --quiet
           docker compose up -d --build --no-deps telescan-api
           CONTAINER_ID="$(docker compose ps -q telescan-api)"
