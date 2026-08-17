@@ -29,6 +29,9 @@ async def test_privacy_page_is_public_html() -> None:
     assert response.media_type == "text/html"
     assert response.headers["content-language"] == "en"
     assert "Privacy Policy" in body
+    assert "Effective August 17, 2026" in body
+    assert "supporting service providers" in body
+    assert "WireGuard" not in body
     assert "Account and data deletion" in body
     assert "https://tgtelescan.ru/privacy" in body
     assert '<span class="brand">Telescan</span>' in body
@@ -48,6 +51,9 @@ async def test_terms_page_supports_russian_query() -> None:
     assert response.headers["content-language"] == "ru"
     assert '<html lang="ru">' in body
     assert "Условия использования" in body
+    assert "Действуют с 17 августа 2026 года" in body
+    assert "поставщиков сетевой и серверной инфраструктуры" in body
+    assert "WireGuard" not in body
     assert "/privacy?lang=ru" in body
     assert "Правила использования Telescan" not in body
     assert '<a class="brand"' not in body

@@ -25,14 +25,14 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "How Telescan processes account, profile-photo, and nearby "
                 "discovery data — and how you stay in control."
             ),
-            effective_date="Effective August 16, 2026",
+            effective_date="Effective August 17, 2026",
             sections=(
                 (
                     "Overview",
                     "<p>Telescan is an iOS app for discovering nearby users "
                     "and opening the public Telegram profiles they choose to "
                     "share. This policy applies to the Telescan app, Telegram "
-                    "bot, API, database, and profile-photo storage.</p>",
+                    "bot, API, and supporting service providers.</p>",
                 ),
                 (
                     "Data we process",
@@ -87,15 +87,17 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "discovery, process reports and blocks, prevent abuse, "
                     "and maintain the service. Telescan does not "
                     "sell personal data.</p>"
-                    "<p>Data is disclosed only to nearby users when you enable "
-                    "discoverability, to infrastructure providers required to "
+                    "<p>Data is disclosed to authenticated Telescan users who "
+                    "receive or already know your public Telescan ID, to "
+                    "infrastructure providers required to "
                     "operate the service, to authorized moderators reviewing "
                     "reports, or when required by law.</p>",
                 ),
                 (
                     "Security and retention",
-                    "<p>API traffic uses HTTPS. One-time linking codes are sent "
-                    "to the API over HTTPS and retained only as keyed hashes "
+                    "<p>API traffic uses encrypted HTTPS. One-time linking "
+                    "codes are sent to the API over HTTPS and "
+                    "retained only as keyed hashes "
                     "until use or expiry. Device sessions use short-lived "
                     "access tokens and rotating refresh tokens stored by the "
                     "iOS Keychain. During a limited backwards-compatibility "
@@ -106,8 +108,9 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "remain until unblocked or account deletion. Pending "
                     "reports remain until a decision; resolved or dismissed "
                     "reports expire after 180 days.</p>"
-                    "<p>Standard request metadata such as IP address, time, "
-                    "path, and response status may be processed for delivery, "
+                    "<p>Service infrastructure may process standard request "
+                    "metadata such as IP address, time, host, "
+                    "path, response status, and upstream timing for delivery, "
                     "reliability, and security — never for advertising or "
                     "behavioral analytics.</p>",
                 ),
@@ -148,7 +151,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Как Telescan обрабатывает данные аккаунта, фотографии и "
                 "поиска людей рядом — и как вы ими управляете."
             ),
-            effective_date="Действует с 16 августа 2026 года",
+            effective_date="Действует с 17 августа 2026 года",
             sections=(
                 (
                     "Общие положения",
@@ -156,7 +159,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "находить пользователей рядом и открывать публичные "
                     "профили Telegram, которыми они решили поделиться. "
                     "Политика распространяется на приложение, Telegram-бота, "
-                    "API, базу данных и хранилище фотографий Telescan.</p>",
+                    "API и поставщиков, обеспечивающих работу сервиса.</p>",
                 ),
                 (
                     "Какие данные мы обрабатываем",
@@ -209,15 +212,17 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "поиска людей рядом, обработки жалоб и блокировок, "
                     "предотвращения злоупотреблений и поддержки сервиса. Telescan не продаёт "
                     "персональные данные.</p>"
-                    "<p>Данные раскрываются только пользователям рядом при "
-                    "включённой видимости, поставщикам инфраструктуры для работы "
+                    "<p>Данные раскрываются пользователям Telescan, которые "
+                    "получили или уже знают ваш публичный Telescan ID, "
+                    "поставщикам инфраструктуры для работы "
                     "сервиса, уполномоченным модераторам для рассмотрения жалоб "
                     "или когда этого требует закон.</p>",
                 ),
                 (
                     "Безопасность и хранение",
-                    "<p>API работает через HTTPS. Одноразовые коды привязки "
-                    "передаются API по HTTPS и до использования или истечения "
+                    "<p>API работает через защищённое соединение HTTPS. "
+                    "Одноразовые коды привязки передаются "
+                    "API по HTTPS и до использования или истечения "
                     "срока хранятся только как ключевые хеши. Сессии устройств "
                     "используют короткоживущие access-токены и ротируемые "
                     "refresh-токены в iOS Keychain. На время ограниченного "
@@ -227,8 +232,9 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "хранятся до удаления аккаунта Telescan. Блокировки "
                     "хранятся до разблокировки или удаления аккаунта. Жалобы "
                     "до решения, а закрытые жалобы удаляются через 180 дней.</p>"
-                    "<p>Стандартные данные запросов — IP-адрес, время, путь и "
-                    "статус ответа — могут обрабатываться для доставки, "
+                    "<p>Инфраструктура сервиса может обрабатывать стандартные "
+                    "данные запросов — IP-адрес, "
+                    "время, host, путь, статус ответа и время upstream — для доставки, "
                     "надёжности и безопасности, но не для рекламы или "
                     "поведенческой аналитики.</p>",
                 ),
@@ -274,7 +280,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "The essential terms for using the Telescan app, bot, API, "
                 "and related services."
             ),
-            effective_date="Effective August 16, 2026",
+            effective_date="Effective August 17, 2026",
             sections=(
                 (
                     "Agreement",
@@ -304,9 +310,11 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "your linked devices, Telegram account, profile "
                     "information, and uploaded photos. Share only content you "
                     "have the right to use.</p>"
-                    "<p>Your profile is available to nearby users only while "
-                    "discoverability is enabled, although radio identifiers can "
-                    "be observed or replayed by devices in range.</p>"
+                    "<p>Your Telescan ID is advertised nearby only while "
+                    "discoverability is enabled. Authenticated users who already "
+                    "know that identifier may still request the shared profile, "
+                    "and radio identifiers can be observed or replayed by "
+                    "devices in range.</p>"
                     "<p>You may report or block a profile. Blocking hides "
                     "profile access in both directions until you unblock it. "
                     "Reports must be submitted in good faith and contain only "
@@ -326,8 +334,10 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Third-party services",
-                    "<p>Telescan relies on Telegram, Apple platforms, and "
-                    "infrastructure providers. Their services and terms are "
+                    "<p>Telescan relies on Telegram, Apple platforms, network "
+                    "and hosting providers, storage providers, and other "
+                    "infrastructure. "
+                    "Their services and terms are "
                     "separate from ours. App Store distributions are also "
                     'subject to Apple’s <a href="https://www.apple.com/legal/'
                     'internet-services/itunes/dev/stdeula/" rel="noopener">'
@@ -368,7 +378,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Основные условия использования приложения Telescan, бота, "
                 "API и связанных сервисов."
             ),
-            effective_date="Действуют с 16 августа 2026 года",
+            effective_date="Действуют с 17 августа 2026 года",
             sections=(
                 (
                     "Согласие с условиями",
@@ -399,9 +409,11 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "привязанные устройства, аккаунт Telegram, сведения профиля и "
                     "загруженные фотографии. Публикуйте только контент, на "
                     "использование которого у вас есть права.</p>"
-                    "<p>Профиль доступен пользователям рядом только при "
-                    "включённой видимости, однако радиоидентификаторы могут быть "
-                    "перехвачены или повторены устройствами в зоне сигнала.</p>"
+                    "<p>Telescan ID передаётся устройствам рядом только при "
+                    "включённой видимости. Пользователь, который уже знает этот "
+                    "идентификатор, всё равно может запросить опубликованный "
+                    "профиль, а радиоидентификаторы могут быть перехвачены или "
+                    "повторены устройствами в зоне сигнала.</p>"
                     "<p>Вы можете пожаловаться на профиль или заблокировать его. "
                     "Блокировка скрывает профили в обоих направлениях до "
                     "разблокировки. Жалобы должны подаваться добросовестно и "
@@ -421,8 +433,10 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Сторонние сервисы",
-                    "<p>Telescan зависит от Telegram, платформ Apple и "
-                    "поставщиков инфраструктуры. Их сервисы и условия не "
+                    "<p>Telescan зависит от Telegram, платформ Apple, "
+                    "поставщиков сетевой и серверной инфраструктуры, "
+                    "хранилищ и других сервисов. Их "
+                    "сервисы и условия не "
                     "являются частью наших. Приложение из App Store также "
                     'подчиняется <a href="https://www.apple.com/legal/internet-'
                     'services/itunes/dev/stdeula/" rel="noopener">стандартному '

@@ -43,9 +43,9 @@ MongoDB or S3-compatible storage rather than the container filesystem.
 For a complete local quality check:
 
 ```sh
-ruff check .
-ruff format --check .
-pyright
+uvx --from ruff==0.16.3 ruff check .
+uvx --from ruff==0.16.3 ruff format --check .
+uvx --from pyright==1.1.411 pyright
 uv run pytest
 uv lock --check
 docker compose config --quiet
@@ -55,8 +55,9 @@ docker compose config --quiet
 
 The bot requests a random eight-character link code for a Telegram account.
 Only an HMAC-SHA-256 digest is stored in the `link_codes` collection. A new code
-revokes any earlier unused code for that account; a code expires after 5–10
-minutes, is consumed atomically, and can be used only once.
+revokes any earlier unused code for that account; a code expires after the
+configured 5–10 minute TTL (10 minutes by default), is consumed atomically, and
+can be used only once.
 
 The bot explicitly reports whether the Telegram photo is present, absent, or
 temporarily unavailable. A present photo is copied to a new unique object URL,
@@ -186,9 +187,16 @@ before removing those fields.
 ## Production boundary
 
 Production startup rejects built-in development secrets and requires an
-explicit, non-wildcard CORS allow-list. Keep `BOT_SERVICE_SECRET` and the
-separate `MODERATION_SERVICE_SECRET` private and block `/internal/` at every
-public proxy.
+explicit, non-wildcard CORS allow-list. It connects to MongoDB through the
+least-privilege application account, not the MongoDB root account. Keep
+`BOT_SERVICE_SECRET` and the separate `MODERATION_SERVICE_SECRET` private and
+block `/internal/` at every public proxy.
+
+Production requests to `api.tgtelescan.ru` terminate TLS on the Netherlands EU
+relay, cross an encrypted WireGuard link to the Moscow nginx origin, and then
+reach FastAPI on the private Docker network. The relay and origin both return
+`404` for internal and documentation paths. `tgtelescan.ru` continues to serve
+the public legal pages from the Moscow edge.
 
 FastAPI Swagger remains enabled, but nginx returns `404` for `/docs`, `/docs/`,
 `/redoc`, and `/openapi.json`. Administrators access Swagger through the API's
@@ -197,9 +205,23 @@ localhost binding and an SSH tunnel documented in
 
 ## Repository workflow
 
-The `main` branch is protected: changes are merged through pull requests,
-force-pushes and branch deletion are disabled, and unresolved review
-conversations block merging. GitHub secret scanning with push protection,
-vulnerability alerts, and Dependabot security updates are enabled. A merge to
-`main` builds the Docker image, deploys through the production environment, and
-waits for the readiness health check.
+Pull requests and pushes to `main` run Ruff, Pyright, pytest, and a Docker
+build. A successful push to `main` deploys through the production environment
+and waits for the readiness health check. Concurrency serializes production
+deployments so two API releases cannot update the host at the same time.
+
+This implementation repository is private. The current GitHub plan does not
+enforce branch protection/rulesets or provide secret scanning and push
+protection for private repositories, so pull-request review and the green
+`Validate and build` job are currently procedural merge gates. Dependabot
+vulnerability alerts and security updates are enabled. Do not force-push or
+delete `main`.
+
+Cross-service architecture, production operations, and security boundaries are
+maintained in the private
+[`Telescan-internal-docs`](https://github.com/hiTechTeam/Telescan-internal-docs)
+repository.
+
+## License
+
+Proprietary and confidential. See [LICENSE](LICENSE).
