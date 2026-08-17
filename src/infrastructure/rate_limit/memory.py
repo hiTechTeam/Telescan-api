@@ -6,7 +6,7 @@ from src.domain.errors import RateLimitExceeded
 
 
 class InMemoryRateLimiter:
-    """Small single-process limiter; production can inject a Redis adapter."""
+    """Small single-process limiter for tests and local dependency overrides."""
 
     def __init__(self) -> None:
         self._events: dict[str, deque[float]] = defaultdict(deque)
@@ -20,5 +20,6 @@ class InMemoryRateLimiter:
             while events and events[0] <= cutoff:
                 events.popleft()
             if len(events) >= limit:
-                raise RateLimitExceeded()
+                retry_after = max(1, int(events[0] + window_seconds - now))
+                raise RateLimitExceeded(retry_after)
             events.append(now)

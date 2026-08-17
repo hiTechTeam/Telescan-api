@@ -43,7 +43,9 @@ class ExternalServiceUnavailable(TelescanError):
 
 
 class RateLimitExceeded(TelescanError):
-    pass
+    def __init__(self, retry_after_seconds: int = 60) -> None:
+        self.retry_after_seconds = max(1, retry_after_seconds)
+        super().__init__("Too many requests")
 
 
 class InvalidModerationAction(TelescanError):

@@ -79,6 +79,23 @@ class DeviceSessionDocument(Document):
         ]
 
 
+class RateLimitDocument(Document):
+    scope_key: str
+    hits: int = 0
+    expires_at: AwareDatetime
+
+    class Settings:
+        name = "rate_limits"
+        indexes = [
+            IndexModel([("scope_key", ASCENDING)], unique=True, name="uniq_scope"),
+            IndexModel(
+                [("expires_at", ASCENDING)],
+                expireAfterSeconds=0,
+                name="ttl_expires_at",
+            ),
+        ]
+
+
 class ConfirmationRequestDocument(Document):
     public_id: UUID = Field(default_factory=uuid4)
     user_id: PydanticObjectId
@@ -192,6 +209,7 @@ DOCUMENT_MODELS = [
     UserDocument,
     LinkCodeDocument,
     DeviceSessionDocument,
+    RateLimitDocument,
     ConfirmationRequestDocument,
     ReportDocument,
     BlockDocument,

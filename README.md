@@ -138,12 +138,12 @@ rendering live in `src/api/presentation`, while the HTML shell is kept in
 
 ## Data ownership and deletion
 
-MongoDB contains six application collections: `users`, `link_codes`,
-`device_sessions`, `confirmation_requests`, `reports`, and `blocks`. Reports
-capture the reporter and target Telescan IDs, reason, optional context, target
-profile snapshot, moderation status, actor, and timestamps. Blocks are unique
-per blocker/target pair and profile reads return `404` when either account has
-blocked the other. The API also owns the
+MongoDB contains seven application collections: `users`, `link_codes`,
+`device_sessions`, `rate_limits`, `confirmation_requests`, `reports`, and
+`blocks`. Reports capture the reporter and target Telescan IDs, reason, optional
+context, target profile snapshot, moderation status, actor, and timestamps.
+Blocks are unique per blocker/target pair and profile reads return `404` when
+either account has blocked the other. The API also owns the
 `users/{telescan_id}/...` photo prefix in S3-compatible storage.
 
 Account deletion first revokes all sessions, then removes photos, link codes,
@@ -152,13 +152,13 @@ user record. Abuse reports are retained for moderation, but direct account
 relations are removed; resolved or dismissed reports expire through a 180-day
 TTL. A storage failure therefore cannot leave a usable authenticated session.
 
-The built-in rate limiter currently protects link, refresh, profile lookup,
-report, block, and code-issuance flows in one API process. It is memory-backed
-and is not shared between replicas; a distributed adapter is still required
-before horizontal scaling. Link attempts are scoped to a device, refreshes to a
-non-reversible token digest, and authenticated profile lookups to the requesting
-user, so nginx's private container address cannot collapse every user into one
-shared public rate-limit bucket.
+The production rate limiter uses atomic fixed-window counters in MongoDB, so
+limits are shared by all API replicas. Counter keys are SHA-256 digests and old
+buckets expire through a TTL index. Link and refresh attempts are constrained
+independently by the trusted edge client address and by device or token digest;
+profile lookup, photo replacement, report, block, and code-issuance flows are
+scoped to the authenticated actor. Responses rejected with `429` include the
+remaining window in `Retry-After`.
 
 ## Migration from the legacy model
 
