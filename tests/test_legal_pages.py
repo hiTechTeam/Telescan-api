@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from starlette.requests import Request
 
@@ -34,10 +36,14 @@ async def test_privacy_page_is_public_html() -> None:
     assert "WireGuard" not in body
     assert "Account and data deletion" in body
     assert "https://tgtelescan.ru/privacy" in body
+    assert '<link rel="stylesheet" href="/public/legal.css">' in body
+    assert "<style>" not in body
     assert '<span class="brand">Telescan</span>' in body
     assert '<a class="brand"' not in body
     assert 'class="mark"' not in body
     assert "Your data, clearly explained" not in body
+    assert "style-src 'self'" in response.headers["content-security-policy"]
+    assert "'unsafe-inline'" not in response.headers["content-security-policy"]
     assert "img-src 'self' data:" in response.headers["content-security-policy"]
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
 
@@ -76,3 +82,12 @@ async def test_accept_language_selects_supported_language() -> None:
 def test_language_quality_is_respected() -> None:
     assert resolve_language(None, "ru;q=0.2,en;q=0.9") == "en"
     assert resolve_language("ru-RU", "en") == "ru"
+
+
+def test_legal_stylesheet_is_served_as_css() -> None:
+    stylesheet = (
+        Path(__file__).resolve().parents[1] / "public" / "legal.css"
+    ).read_text(encoding="utf-8")
+
+    assert '.nav-link[aria-current="page"]' in stylesheet
+    assert "prefers-color-scheme: dark" in stylesheet

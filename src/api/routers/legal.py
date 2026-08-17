@@ -16,7 +16,7 @@ def page_response(kind: str, language: str) -> HTMLResponse:
             "Cache-Control": "public, max-age=3600",
             "Content-Language": language,
             "Content-Security-Policy": (
-                "default-src 'none'; style-src 'unsafe-inline'; "
+                "default-src 'none'; style-src 'self'; "
                 "img-src 'self' data:; base-uri 'none'; form-action 'none'; "
                 "frame-ancestors 'none'"
             ),
