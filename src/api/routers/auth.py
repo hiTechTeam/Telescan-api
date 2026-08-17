@@ -3,8 +3,9 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
+from src.api.request_scope import request_client_ip
 from src.dependencies.auth import get_current_auth
 from src.dependencies.container import Container, get_container
 from src.domain.entities import AuthContext
@@ -34,11 +35,15 @@ def _profile(user: object) -> ProfileResponse:
 
 @router.post("/link", response_model=LinkedAccountResponse)
 async def link_device(
+    request: Request,
     payload: LinkRequest,
     container: Annotated[Container, Depends(get_container)],
 ) -> LinkedAccountResponse:
     await container.rate_limiter.check(
-        f"auth-link:{payload.device_id}", limit=10, window_seconds=300
+        f"auth-link:ip:{request_client_ip(request)}", limit=30, window_seconds=300
+    )
+    await container.rate_limiter.check(
+        f"auth-link:device:{payload.device_id}", limit=10, window_seconds=300
     )
     tokens, user = await container.link_device.execute(payload.code, payload.device_id)
     return LinkedAccountResponse(tokens=_tokens(tokens), profile=_profile(user))
@@ -46,12 +51,18 @@ async def link_device(
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_session(
+    request: Request,
     payload: RefreshRequest,
     container: Annotated[Container, Depends(get_container)],
 ) -> TokenResponse:
     token_scope = hashlib.sha256(payload.refresh_token.encode("utf-8")).hexdigest()
     await container.rate_limiter.check(
-        f"auth-refresh:{token_scope}", limit=30, window_seconds=60
+        f"auth-refresh:ip:{request_client_ip(request)}",
+        limit=60,
+        window_seconds=60,
+    )
+    await container.rate_limiter.check(
+        f"auth-refresh:token:{token_scope}", limit=30, window_seconds=60
     )
     return _tokens(await container.refresh_session.execute(payload.refresh_token))
 

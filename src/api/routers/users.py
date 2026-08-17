@@ -33,6 +33,9 @@ async def replace_my_photo(
     auth: Annotated[AuthContext, Depends(get_current_auth)],
     container: Annotated[Container, Depends(get_container)],
 ) -> ProfileResponse:
+    await container.rate_limiter.check(
+        f"photo:{auth.user_id}", limit=10, window_seconds=3600
+    )
     data = await photo.read(container.settings.max_photo_bytes + 1)
     return _profile(await container.update_own_photo.replace(auth.user_id, data))
 

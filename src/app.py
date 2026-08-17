@@ -116,11 +116,11 @@ def create_app(
         )
 
     @application.exception_handler(RateLimitExceeded)
-    async def rate_limited(_: Request, __: RateLimitExceeded) -> ORJSONResponse:
+    async def rate_limited(_: Request, error: RateLimitExceeded) -> ORJSONResponse:
         return ORJSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={"detail": "Too many requests"},
-            headers={"Retry-After": "60"},
+            headers={"Retry-After": str(error.retry_after_seconds)},
         )
 
     @application.exception_handler(ExternalServiceUnavailable)

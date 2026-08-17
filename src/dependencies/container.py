@@ -5,7 +5,7 @@ from fastapi import Request
 from src.core.config import Settings
 from src.infrastructure.bot import BotInternalClient
 from src.infrastructure.jwt import TokenService
-from src.infrastructure.rate_limit import InMemoryRateLimiter
+from src.infrastructure.rate_limit import MongoRateLimiter, RateLimiter
 from src.infrastructure.s3 import S3PhotoStorage
 from src.repositories import (
     BlockRepository,
@@ -55,7 +55,7 @@ class Container:
     users: UserRepository
     sessions: SessionRepository
     tokens: TokenService
-    rate_limiter: InMemoryRateLimiter
+    rate_limiter: RateLimiter
     issue_link_code: IssueLinkCode
     link_device: LinkDevice
     refresh_session: RefreshSession
@@ -121,7 +121,7 @@ def build_container(settings: Settings) -> Container:
         users=users,
         sessions=sessions,
         tokens=token_service,
-        rate_limiter=InMemoryRateLimiter(),
+        rate_limiter=MongoRateLimiter(),
         issue_link_code=IssueLinkCode(
             users,
             link_codes,
