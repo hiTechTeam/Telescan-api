@@ -4,6 +4,7 @@ from .documents import (
     DeviceSessionDocument,
     LinkCodeDocument,
     RateLimitDocument,
+    ReviewCodeDocument,
     UserDocument,
 )
 
@@ -12,6 +13,7 @@ __all__ = [
     "DeviceSessionDocument",
     "LinkCodeDocument",
     "RateLimitDocument",
+    "ReviewCodeDocument",
     "UserDocument",
     "close_database",
     "database_ready",

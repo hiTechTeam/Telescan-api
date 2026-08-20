@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     link_code_hmac_secret: str = Field(
         default="development-link-secret-change-me", min_length=32
     )
+    review_code_hmac_secret: str = Field(
+        default="development-review-secret-change-me", min_length=32
+    )
     bot_service_secret: str = Field(
         default="development-service-secret-change-me", min_length=32
     )
@@ -73,11 +76,21 @@ class Settings(BaseSettings):
         insecure = (
             self.jwt_secret.startswith("development-"),
             self.link_code_hmac_secret.startswith("development-"),
+            self.review_code_hmac_secret.startswith("development-"),
             self.bot_service_secret.startswith("development-"),
             self.moderation_service_secret.startswith("development-"),
         )
         if any(insecure):
             raise ValueError("Production secrets must be explicitly configured")
+        secrets = {
+            self.jwt_secret,
+            self.link_code_hmac_secret,
+            self.review_code_hmac_secret,
+            self.bot_service_secret,
+            self.moderation_service_secret,
+        }
+        if len(secrets) != 5:
+            raise ValueError("Production secrets must be distinct")
         if not self.cors_origins or "*" in self.cors_origins:
             raise ValueError("CORS_ORIGINS must be an explicit production allow-list")
         return self

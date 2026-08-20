@@ -77,6 +77,31 @@ Refresh tokens rotate on every refresh. Reuse of an old refresh token revokes
 the affected session. Every protected request validates both the access JWT and
 the active `DeviceSession`, so logout and revocation take effect immediately.
 
+App Review credentials use the separate `review_codes` collection and a
+dedicated HMAC secret. They remain scoped to one existing review profile, are
+single-use, share the normal link endpoint rate limits, and retain lifecycle
+metadata for 90 days after expiry. Issue them only from the production host:
+
+```sh
+docker compose exec telescan-api /app/.venv/bin/python -m scripts.review_codes issue \
+  --telescan-id REVIEW_PROFILE_ID \
+  --count 10 \
+  --valid-days 30 \
+  --issued-by OPERATOR \
+  --apply \
+  --confirm ISSUE_REVIEW_CODES
+
+docker compose exec telescan-api /app/.venv/bin/python -m scripts.review_codes status \
+  --batch-id BATCH_ID
+docker compose exec telescan-api /app/.venv/bin/python -m scripts.review_codes revoke \
+  --batch-id BATCH_ID \
+  --revoked-by OPERATOR \
+  --apply
+```
+
+Clear codes are printed once and are never stored. Copy them directly into the
+private App Store Connect review notes and revoke the unused batch after review.
+
 ## API surface
 
 Public legal pages and authentication bootstrap:
@@ -138,19 +163,21 @@ rendering live in `src/api/presentation`, while the HTML shell is kept in
 
 ## Data ownership and deletion
 
-MongoDB contains seven application collections: `users`, `link_codes`,
-`device_sessions`, `rate_limits`, `confirmation_requests`, `reports`, and
-`blocks`. Reports capture the reporter and target Telescan IDs, reason, optional
-context, target profile snapshot, moderation status, actor, and timestamps.
+MongoDB contains eight application collections: `users`, `link_codes`,
+`review_codes`, `device_sessions`, `rate_limits`, `confirmation_requests`,
+`reports`, and `blocks`. Reports capture the reporter and target Telescan IDs,
+reason, optional context, target profile snapshot, moderation status, actor, and
+timestamps.
 Blocks are unique per blocker/target pair and profile reads return `404` when
 either account has blocked the other. The API also owns the
 `users/{telescan_id}/...` photo prefix in S3-compatible storage.
 
-Account deletion first revokes all sessions, then removes photos, link codes,
-confirmation requests, block relationships, device sessions, and finally the
-user record. Abuse reports are retained for moderation, but direct account
-relations are removed; resolved or dismissed reports expire through a 180-day
-TTL. A storage failure therefore cannot leave a usable authenticated session.
+Account deletion first revokes all sessions, then removes photos, regular and
+review link codes, confirmation requests, block relationships, device sessions,
+and finally the user record. Abuse reports are retained for moderation, but
+direct account relations are removed; resolved or dismissed reports expire
+through a 180-day TTL. A storage failure therefore cannot leave a usable
+authenticated session.
 
 The production rate limiter uses atomic fixed-window counters in MongoDB, so
 limits are shared by all API replicas. Counter keys are SHA-256 digests and old

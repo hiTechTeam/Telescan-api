@@ -6,6 +6,7 @@ from src.domain.ports import (
     BlockRepositoryPort,
     ConfirmationRepositoryPort,
     LinkCodeRepositoryPort,
+    ReviewCodeRepositoryPort,
     ReportRepositoryPort,
     SessionRepositoryPort,
     UserRepositoryPort,
@@ -76,6 +77,7 @@ class DeleteAccount:
         reports: ReportRepositoryPort,
         blocks: BlockRepositoryPort,
         photos: PhotoService,
+        review_codes: ReviewCodeRepositoryPort | None = None,
     ) -> None:
         self._users = users
         self._link_codes = link_codes
@@ -84,6 +86,7 @@ class DeleteAccount:
         self._reports = reports
         self._blocks = blocks
         self._photos = photos
+        self._review_codes = review_codes
 
     async def execute(self, user_id: str) -> None:
         user = await self._users.get_by_id(user_id)
@@ -96,6 +99,8 @@ class DeleteAccount:
             getattr(user, "telescan_id"), getattr(user, "photo_s3_link", None)
         )
         await self._link_codes.delete_for_user(user_id)
+        if self._review_codes is not None:
+            await self._review_codes.delete_for_user(user_id)
         await self._confirmations.delete_for_user(user_id)
         await self._blocks.delete_for_user(user_id)
         await self._reports.anonymize_user(user_id)

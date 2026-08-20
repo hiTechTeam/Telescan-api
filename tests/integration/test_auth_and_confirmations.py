@@ -151,6 +151,43 @@ async def test_link_is_one_time_under_concurrency_and_supports_multiple_devices(
 
 
 @pytest.mark.asyncio
+async def test_review_code_is_separate_scoped_and_one_time() -> None:
+    users = FakeUsers()
+    regular_codes = FakeLinkCodes()
+    review_codes = FakeLinkCodes()
+    sessions = FakeSessions()
+    regular_service = LinkCodeService("regular-hmac-secret", 8)
+    review_service = LinkCodeService("review-hmac-secret", 8)
+    token_service = TokenService("jwt-secret-that-is-at-least-32-bytes", "issuer", 900)
+    now = datetime.now(UTC)
+    user = await users.upsert_telegram_profile(10, "Review", "telescan_review")
+    clear_code = review_service.generate()
+    await review_codes.create(
+        review_service.hash(clear_code),
+        str(user.id),
+        now,
+        now + timedelta(days=30),
+    )
+    link = LinkDevice(
+        users,
+        regular_codes,
+        sessions,
+        SessionService(sessions, token_service),
+        regular_service,
+        30 * 86400,
+        review_codes,
+        review_service,
+    )
+
+    _, linked_user = await link.execute(clear_code, uuid4(), now + timedelta(seconds=1))
+
+    assert linked_user.id == user.id
+    assert not regular_codes.items
+    with pytest.raises(InvalidLinkCode):
+        await link.execute(clear_code, uuid4(), now + timedelta(seconds=2))
+
+
+@pytest.mark.asyncio
 async def test_confirmation_cancel_confirm_and_expire() -> None:
     users, _, sessions, issue, link = build_auth_flow()
     now = datetime.now(UTC)
@@ -240,6 +277,13 @@ async def test_account_deletion_cleans_domain_data_and_photos_separately_from_lo
     _, user = await link.execute(issued.code, uuid4(), now)
     user.photo_s3_link = "https://storage.example/users/photo.jpg"
     confirmations = FakeConfirmations()
+    review_codes = FakeLinkCodes()
+    await review_codes.create(
+        "review-hash",
+        str(user.id),
+        now,
+        now + timedelta(days=30),
+    )
     await confirmations.create_logout_all(str(user.id), now, now + timedelta(minutes=5))
     storage = FakeStorage()
     delete = DeleteAccount(
@@ -250,6 +294,7 @@ async def test_account_deletion_cleans_domain_data_and_photos_separately_from_lo
         FakeReports(),
         FakeBlocks(),
         PhotoService(storage, 1024),
+        review_codes,
     )
 
     await delete.execute(str(user.id))
@@ -258,5 +303,6 @@ async def test_account_deletion_cleans_domain_data_and_photos_separately_from_lo
     assert not sessions.items
     assert not codes.items
     assert not confirmations.items
+    assert not review_codes.items
     assert user.photo_s3_link in storage.deleted
     assert f"users/{user.telescan_id}/" in storage.deleted

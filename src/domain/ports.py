@@ -29,6 +29,13 @@ class LinkCodeRepositoryPort(Protocol):
     async def delete_for_user(self, user_id: str) -> None: ...
 
 
+class ReviewCodeRepositoryPort(Protocol):
+    async def consume(
+        self, code_hash: str, device_id: UUID, now: datetime
+    ) -> Any | None: ...
+    async def delete_for_user(self, user_id: str) -> None: ...
+
+
 class SessionRepositoryPort(Protocol):
     async def create_or_replace(
         self, user_id: str, device_id: UUID, now: datetime, expires_at: datetime

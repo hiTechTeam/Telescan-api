@@ -5,6 +5,7 @@ from src.domain.entities import AuthTokens
 from src.domain.errors import InvalidLinkCode, UserNotFound
 from src.domain.ports import (
     LinkCodeRepositoryPort,
+    ReviewCodeRepositoryPort,
     SessionRepositoryPort,
     UserRepositoryPort,
 )
@@ -21,6 +22,8 @@ class LinkDevice:
         session_service: SessionService,
         codes: LinkCodeService,
         refresh_ttl_seconds: int,
+        review_codes: ReviewCodeRepositoryPort | None = None,
+        review_code_service: LinkCodeService | None = None,
     ) -> None:
         self._users = users
         self._link_codes = link_codes
@@ -28,6 +31,8 @@ class LinkDevice:
         self._session_service = session_service
         self._codes = codes
         self._refresh_ttl_seconds = refresh_ttl_seconds
+        self._review_codes = review_codes
+        self._review_code_service = review_code_service
 
     async def execute(
         self, code: str, device_id: UUID, now: datetime | None = None
@@ -36,6 +41,14 @@ class LinkDevice:
         consumed = await self._link_codes.consume(
             self._codes.hash(code), device_id, current_time
         )
+        if (
+            consumed is None
+            and self._review_codes is not None
+            and self._review_code_service is not None
+        ):
+            consumed = await self._review_codes.consume(
+                self._review_code_service.hash(code), device_id, current_time
+            )
         if consumed is None:
             raise InvalidLinkCode()
         user_id = str(getattr(consumed, "user_id"))

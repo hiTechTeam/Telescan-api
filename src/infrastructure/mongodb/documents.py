@@ -56,6 +56,43 @@ class LinkCodeDocument(Document):
         ]
 
 
+class ReviewCodeDocument(Document):
+    public_id: UUID = Field(default_factory=uuid4)
+    batch_id: UUID
+    code_hash: str
+    user_id: PydanticObjectId
+    status: LinkCodeStatus = LinkCodeStatus.ISSUED
+    created_at: AwareDatetime
+    expires_at: AwareDatetime
+    retention_until: AwareDatetime
+    issued_by: str
+    consumed_at: AwareDatetime | None = None
+    consumed_by_device_id: UUID | None = None
+    revoked_at: AwareDatetime | None = None
+    revoked_by: str | None = None
+
+    class Settings:
+        name = "review_codes"
+        indexes = [
+            IndexModel([("public_id", ASCENDING)], unique=True, name="uniq_public_id"),
+            IndexModel([("code_hash", ASCENDING)], unique=True, name="uniq_code_hash"),
+            IndexModel(
+                [("batch_id", ASCENDING), ("status", ASCENDING)],
+                name="batch_status",
+            ),
+            IndexModel(
+                [("user_id", ASCENDING), ("status", ASCENDING)],
+                name="user_status",
+            ),
+            IndexModel([("expires_at", ASCENDING)], name="expires_at"),
+            IndexModel(
+                [("retention_until", ASCENDING)],
+                expireAfterSeconds=0,
+                name="ttl_retention_until",
+            ),
+        ]
+
+
 class DeviceSessionDocument(Document):
     user_id: PydanticObjectId
     device_id: UUID
@@ -208,6 +245,7 @@ class BlockDocument(Document):
 DOCUMENT_MODELS = [
     UserDocument,
     LinkCodeDocument,
+    ReviewCodeDocument,
     DeviceSessionDocument,
     RateLimitDocument,
     ConfirmationRequestDocument,

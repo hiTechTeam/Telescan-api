@@ -12,6 +12,7 @@ from src.repositories import (
     ConfirmationRepository,
     LinkCodeRepository,
     ReportRepository,
+    ReviewCodeRepository,
     SessionRepository,
     UserRepository,
 )
@@ -81,6 +82,7 @@ class Container:
 def build_container(settings: Settings) -> Container:
     users = UserRepository()
     link_codes = LinkCodeRepository()
+    review_codes = ReviewCodeRepository()
     sessions = SessionRepository()
     confirmations = ConfirmationRepository()
     reports = ReportRepository()
@@ -88,6 +90,9 @@ def build_container(settings: Settings) -> Container:
     legacy_repository = LegacyRepository()
     code_service = LinkCodeService(
         settings.link_code_hmac_secret, settings.link_code_length
+    )
+    review_code_service = LinkCodeService(
+        settings.review_code_hmac_secret, settings.link_code_length
     )
     token_service = TokenService(
         settings.jwt_secret, settings.jwt_issuer, settings.access_token_ttl_seconds
@@ -115,6 +120,7 @@ def build_container(settings: Settings) -> Container:
         reports,
         blocks,
         photos,
+        review_codes,
     )
     return Container(
         settings=settings,
@@ -137,6 +143,8 @@ def build_container(settings: Settings) -> Container:
             session_service,
             code_service,
             settings.refresh_token_ttl_seconds,
+            review_codes,
+            review_code_service,
         ),
         refresh_session=RefreshSession(session_service),
         request_logout_all=RequestLogoutAll(

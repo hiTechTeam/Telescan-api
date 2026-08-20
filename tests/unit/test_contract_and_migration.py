@@ -4,6 +4,7 @@ from src.core.config import Settings
 from src.infrastructure.mongodb.documents import (
     BlockDocument,
     ReportDocument,
+    ReviewCodeDocument,
     UserDocument,
 )
 from src.schemas.users import ProfileResponse
@@ -91,6 +92,19 @@ def test_moderation_documents_have_deduplication_and_lookup_indexes() -> None:
     assert any(
         index.get("unique") and index.get("name") == "uniq_blocker_blocked"
         for index in block_indexes
+    )
+
+
+def test_review_codes_have_unique_hash_and_delayed_audit_retention() -> None:
+    indexes = [index.document for index in ReviewCodeDocument.Settings.indexes]
+    assert any(
+        index.get("unique") and index.get("name") == "uniq_code_hash"
+        for index in indexes
+    )
+    assert any(
+        index.get("expireAfterSeconds") == 0
+        and index.get("name") == "ttl_retention_until"
+        for index in indexes
     )
 
 
