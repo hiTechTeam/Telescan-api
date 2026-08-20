@@ -22,10 +22,10 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
         "en": LegalDocument(
             title="Privacy Policy",
             summary=(
-                "How Telescan processes account, profile-photo, and nearby "
+                "How Telescan processes account, profile, and nearby "
                 "discovery data — and how you stay in control."
             ),
-            effective_date="Effective August 17, 2026",
+            effective_date="Effective August 20, 2026",
             sections=(
                 (
                     "Overview",
@@ -45,11 +45,13 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>If you choose another profile photo, Telescan accesses "
                     "only the image selected through the camera or system photo "
                     "picker. The app resizes and compresses it before uploading "
-                    "a copy to Telescan cloud storage.</p>"
+                    "a copy to Telescan cloud storage. You may also add an "
+                    "optional BIO of up to 120 characters.</p>"
                     "<ul><li>Telegram ID, first name, and username</li>"
                     "<li>Random Telescan ID and active device sessions</li>"
                     "<li>Temporary keyed hashes of one-time linking codes</li>"
                     "<li>Telegram or user-selected profile photo</li>"
+                    "<li>Optional BIO you add to your Telescan profile</li>"
                     "<li>Reports, blocks, and moderation records you create</li></ul>",
                 ),
                 (
@@ -66,7 +68,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Reports and blocks",
                     "<p>A report stores the reporter and target Telescan IDs, "
                     "reason, optional comment, a snapshot of the target name, "
-                    "username and photo URL, review status, timestamps, and "
+                    "username, BIO and photo URL, review status, timestamps, and "
                     "moderator audit fields. The target is not shown the "
                     "reporter's identity.</p><p>A block stores the account "
                     "relationship, target profile snapshot, and creation time. "
@@ -83,7 +85,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Use and sharing",
                     "<p>Account data is used only to register users, display "
-                    "shared profiles, manage profile photos, operate nearby "
+                    "shared profiles, manage BIO and profile photos, operate nearby "
                     "discovery, process reports and blocks, prevent abuse, "
                     "and maintain the service. Telescan does not "
                     "sell personal data.</p>"
@@ -103,7 +105,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "iOS Keychain. During a limited backwards-compatibility "
                     "rollout, an additional SHA-256 code hash may be retained "
                     "for the older app and is removed after that rollout. "
-                    "Account records and stored profile photos "
+                    "Account records, BIO and stored profile photos "
                     "remain until you delete the Telescan account. Blocks "
                     "remain until unblocked or account deletion. Pending "
                     "reports remain until a decision; resolved or dismissed "
@@ -127,7 +129,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Your choices",
                     "<p>You can disable discoverability, replace or remove your "
-                    "profile photo, report or block profiles, manage blocked "
+                    "BIO and profile photo, report or block profiles, manage blocked "
                     "profiles, sign out the current device, or delete "
                     "your account and all its sessions. Depending on applicable law, "
                     "you may also have rights to access, correct, restrict, or "
@@ -151,7 +153,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Как Telescan обрабатывает данные аккаунта, фотографии и "
                 "поиска людей рядом — и как вы ими управляете."
             ),
-            effective_date="Действует с 17 августа 2026 года",
+            effective_date="Действует с 20 августа 2026 года",
             sections=(
                 (
                     "Общие положения",
@@ -172,11 +174,13 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Если вы выбираете другую фотографию, Telescan получает "
                     "доступ только к снимку, выбранному через камеру или "
                     "системный медиапикер. Приложение уменьшает и сжимает его "
-                    "перед загрузкой копии в облачное хранилище.</p>"
+                    "перед загрузкой копии в облачное хранилище. Вы также можете "
+                    "добавить необязательное BIO длиной до 120 символов.</p>"
                     "<ul><li>Telegram ID, имя и username</li>"
                     "<li>Случайный Telescan ID и активные сессии устройств</li>"
                     "<li>Временные ключевые хеши одноразовых кодов привязки</li>"
                     "<li>Фотография из Telegram или выбранная вами</li>"
+                    "<li>Необязательное BIO, добавленное вами в Telescan</li>"
                     "<li>Созданные вами жалобы, блокировки и записи модерации</li></ul>",
                 ),
                 (
@@ -192,7 +196,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Жалобы и блокировки",
                     "<p>Жалоба содержит Telescan ID отправителя и цели, причину, "
-                    "необязательный комментарий, снимок имени, username и URL "
+                    "необязательный комментарий, снимок имени, username, BIO и URL "
                     "фотографии цели, статус, время и аудит модератора. Цель не "
                     "видит личность отправителя.</p><p>Блокировка содержит связь "
                     "аккаунтов, снимок профиля цели и время. Она скрывает "
@@ -208,7 +212,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Использование и передача",
                     "<p>Данные аккаунта используются только для регистрации, "
-                    "показа опубликованных профилей, управления фотографиями, "
+                    "показа опубликованных профилей, управления BIO и фотографиями, "
                     "поиска людей рядом, обработки жалоб и блокировок, "
                     "предотвращения злоупотреблений и поддержки сервиса. Telescan не продаёт "
                     "персональные данные.</p>"
@@ -228,7 +232,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "refresh-токены в iOS Keychain. На время ограниченного "
                     "переходного периода для старой версии приложения может "
                     "дополнительно храниться SHA-256-хеш кода; после перехода "
-                    "он удаляется. Запись аккаунта и фотографии "
+                    "он удаляется. Запись аккаунта, BIO и фотографии "
                     "хранятся до удаления аккаунта Telescan. Блокировки "
                     "хранятся до разблокировки или удаления аккаунта. Жалобы "
                     "до решения, а закрытые жалобы удаляются через 180 дней.</p>"
@@ -252,7 +256,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Ваш выбор",
                     "<p>Вы можете отключить видимость, заменить или удалить "
-                    "фотографию, пожаловаться или заблокировать профиль, "
+                    "BIO и фотографию, пожаловаться или заблокировать профиль, "
                     "управлять блокировками, выйти на текущем устройстве или удалить "
                     "аккаунт и все его сессии. "
                     "В зависимости от применимого законодательства вы также "
@@ -280,7 +284,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "The essential terms for using the Telescan app, bot, API, "
                 "and related services."
             ),
-            effective_date="Effective August 17, 2026",
+            effective_date="Effective August 20, 2026",
             sections=(
                 (
                     "Agreement",
@@ -295,7 +299,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Telescan helps nearby users discover and open public "
                     "Telegram profiles they choose to share. Bluetooth Low "
                     "Energy provides local discovery; an internet connection is "
-                    "required for registration, profile loading, photo "
+                    "required for registration, profile loading, BIO and photo "
                     "management, and account deletion.</p>"
                     "<p>Telescan is experimental. BLE visibility and distance "
                     "estimates may be delayed, incomplete, or inaccurate and "
@@ -308,7 +312,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>You must be allowed to use Telegram and Telescan under "
                     "applicable law and platform rules. You are responsible for "
                     "your linked devices, Telegram account, profile "
-                    "information, and uploaded photos. Share only content you "
+                    "information, BIO, and uploaded photos. Share only content you "
                     "have the right to use.</p>"
                     "<p>Your Telescan ID is advertised nearby only while "
                     "discoverability is enabled. Authenticated users who already "
@@ -378,7 +382,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Основные условия использования приложения Telescan, бота, "
                 "API и связанных сервисов."
             ),
-            effective_date="Действуют с 17 августа 2026 года",
+            effective_date="Действуют с 20 августа 2026 года",
             sections=(
                 (
                     "Согласие с условиями",
@@ -395,7 +399,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "открывать публичные профили Telegram, которыми они решили "
                     "поделиться. Bluetooth Low Energy используется для поиска; "
                     "интернет требуется для регистрации, загрузки профилей, "
-                    "управления фотографиями и удаления аккаунта.</p>"
+                    "управления BIO и фотографиями и удаления аккаунта.</p>"
                     "<p>Telescan является экспериментальным сервисом. Видимость "
                     "BLE и оценка расстояния могут быть неточными, неполными или "
                     "запаздывать. Их нельзя использовать для безопасности, "
@@ -406,7 +410,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Ваш аккаунт и контент",
                     "<p>Вы должны иметь право использовать Telegram и Telescan "
                     "по применимым законам и правилам платформ. Вы отвечаете за "
-                    "привязанные устройства, аккаунт Telegram, сведения профиля и "
+                    "привязанные устройства, аккаунт Telegram, сведения профиля, BIO и "
                     "загруженные фотографии. Публикуйте только контент, на "
                     "использование которого у вас есть права.</p>"
                     "<p>Telescan ID передаётся устройствам рядом только при "

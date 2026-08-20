@@ -10,7 +10,12 @@ from src.api.routers.auth import logout_current_session
 from src.dependencies.auth import get_current_auth
 from src.domain.entities import AuthContext
 from src.domain.enums import ConfirmationStatus, LinkCodeStatus, TelegramPhotoState
-from src.domain.errors import ConfirmationNotFound, InvalidLinkCode, SessionRevoked
+from src.domain.errors import (
+    ConfirmationNotFound,
+    InvalidLinkCode,
+    SessionRevoked,
+    TelegramUsernameRequired,
+)
 from src.infrastructure.jwt import TokenService
 from src.services.codes import LinkCodeService
 from src.services.photos import PhotoService
@@ -22,7 +27,7 @@ from src.use_cases.confirmations import (
     RequestLogoutAll,
 )
 from src.use_cases.issue_link_code import IssueLinkCode
-from src.use_cases.profiles import DeleteAccount
+from src.use_cases.profiles import DeleteAccount, UpdateOwnBio
 from tests.fakes import (
     FakeBot,
     FakeBlocks,
@@ -67,6 +72,61 @@ async def test_issue_revokes_previous_and_code_expires() -> None:
     with pytest.raises(InvalidLinkCode):
         await link.execute(second.code, uuid4(), now + timedelta(minutes=6))
     assert len(users.users) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("username", [None, "", "   "])
+async def test_issue_requires_public_telegram_username(username: str | None) -> None:
+    users, codes, _, issue, _ = build_auth_flow()
+
+    with pytest.raises(TelegramUsernameRequired):
+        await issue.execute(10, "Ada", username, None)
+
+    assert not users.users
+    assert not codes.items
+
+
+@pytest.mark.asyncio
+async def test_bio_is_trimmed_and_can_be_removed() -> None:
+    users = FakeUsers()
+    user = await users.upsert_telegram_profile(10, "Ada", "ada")
+    update = UpdateOwnBio(users)
+
+    saved = await update.execute(str(user.id), "  iOS engineer.\nOpen   to meetups.  ")
+    assert saved.bio == "iOS engineer. Open to meetups."
+
+    cleared = await update.execute(str(user.id), "   ")
+    assert cleared.bio is None
+
+
+@pytest.mark.asyncio
+async def test_telegram_profile_refresh_preserves_telescan_bio() -> None:
+    users, _, _, issue, _ = build_auth_flow()
+    user = await users.upsert_telegram_profile(10, "Ada", "ada")
+    await users.update_bio(str(user.id), "Looking for product designers")
+
+    await issue.execute(10, "Ada Updated", "ada_updated", None)
+
+    assert user.tg_name == "Ada Updated"
+    assert user.tg_username == "ada_updated"
+    assert user.bio == "Looking for product designers"
+
+
+@pytest.mark.asyncio
+async def test_link_rejects_profile_that_lost_telegram_username() -> None:
+    users, codes, sessions, _, link = build_auth_flow()
+    user = await users.upsert_telegram_profile(10, "Ada", None)
+    service = LinkCodeService("hmac-secret", 8)
+    clear_code = service.generate()
+    now = datetime.now(UTC)
+    await codes.create(
+        service.hash(clear_code), str(user.id), now, now + timedelta(minutes=5)
+    )
+
+    with pytest.raises(TelegramUsernameRequired):
+        await link.execute(clear_code, uuid4(), now + timedelta(seconds=1))
+
+    assert not sessions.items
 
 
 @pytest.mark.asyncio

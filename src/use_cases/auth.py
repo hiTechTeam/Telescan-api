@@ -9,6 +9,7 @@ from src.domain.ports import (
     SessionRepositoryPort,
     UserRepositoryPort,
 )
+from src.domain.usernames import require_telegram_username
 from src.services.codes import LinkCodeService
 from src.services.sessions import SessionService
 
@@ -55,6 +56,7 @@ class LinkDevice:
         user = await self._users.get_by_id(user_id)
         if user is None:
             raise UserNotFound()
+        require_telegram_username(getattr(user, "tg_username", None))
         session = await self._sessions.create_or_replace(
             user_id,
             device_id,

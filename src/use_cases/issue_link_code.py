@@ -9,6 +9,7 @@ from src.domain.ports import (
     LinkCodeRepositoryPort,
     UserRepositoryPort,
 )
+from src.domain.usernames import require_telegram_username
 from src.services.codes import LinkCodeService
 from src.services.photos import PhotoService
 
@@ -42,8 +43,9 @@ class IssueLinkCode:
         now: datetime | None = None,
         photo_state: TelegramPhotoState = TelegramPhotoState.UNCHANGED,
     ) -> IssuedLinkCode:
+        username = require_telegram_username(tg_username)
         current_time = now or datetime.now(UTC)
-        user = await self._users.upsert_telegram_profile(tg_id, tg_name, tg_username)
+        user = await self._users.upsert_telegram_profile(tg_id, tg_name, username)
 
         if photo is not None:
             try:

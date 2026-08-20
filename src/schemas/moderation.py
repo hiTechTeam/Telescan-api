@@ -41,6 +41,7 @@ class ModerationReportResponse(BaseModel):
     details: str | None = None
     target_name: Annotated[str | None, Field(alias="targetName")] = None
     target_username: Annotated[str | None, Field(alias="targetUsername")] = None
+    target_bio: Annotated[str | None, Field(alias="targetBio")] = None
     target_photo_url: Annotated[str | None, Field(alias="targetPhotoUrl")] = None
     status: ReportStatus
     created_at: Annotated[datetime, Field(alias="createdAt")]

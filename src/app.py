@@ -22,6 +22,7 @@ from src.domain.errors import (
     RateLimitExceeded,
     RefreshTokenReused,
     SessionRevoked,
+    TelegramUsernameRequired,
     UserNotFound,
 )
 from src.infrastructure.mongodb import close_database, init_database
@@ -71,6 +72,18 @@ def create_app(
         return ORJSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Invalid or expired link code"},
+        )
+
+    @application.exception_handler(TelegramUsernameRequired)
+    async def telegram_username_required(
+        _: Request, __: TelegramUsernameRequired
+    ) -> ORJSONResponse:
+        return ORJSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content={
+                "detail": "Public Telegram username is required",
+                "code": "telegram_username_required",
+            },
         )
 
     @application.exception_handler(InvalidToken)

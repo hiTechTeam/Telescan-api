@@ -46,6 +46,7 @@ from src.use_cases.profiles import (
     DeleteAccount,
     GetOwnProfile,
     GetPublicProfile,
+    UpdateOwnBio,
     UpdateOwnPhoto,
 )
 
@@ -67,6 +68,7 @@ class Container:
     register_confirmation_message: RegisterConfirmationMessage
     get_own_profile: GetOwnProfile
     get_public_profile: GetPublicProfile
+    update_own_bio: UpdateOwnBio
     update_own_photo: UpdateOwnPhoto
     delete_account: DeleteAccount
     submit_report: SubmitReport
@@ -156,6 +158,7 @@ def build_container(settings: Settings) -> Container:
         register_confirmation_message=RegisterConfirmationMessage(confirmations),
         get_own_profile=GetOwnProfile(users),
         get_public_profile=GetPublicProfile(users, blocks),
+        update_own_bio=UpdateOwnBio(users),
         update_own_photo=update_own_photo,
         delete_account=delete_account,
         submit_report=SubmitReport(users, reports),

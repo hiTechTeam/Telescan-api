@@ -27,6 +27,7 @@ class UserRepository:
                 "$setOnInsert": {
                     "telescan_id": uuid4(),
                     "created_at": now,
+                    "bio": None,
                     "photo_s3_link": None,
                 },
             },
@@ -45,6 +46,15 @@ class UserRepository:
 
     async def get_by_tg_id(self, tg_id: int) -> UserDocument | None:
         return await UserDocument.find_one(UserDocument.tg_id == tg_id)
+
+    async def update_bio(self, user_id: str, bio: str | None) -> UserDocument:
+        user = await self.get_by_id(user_id)
+        if user is None:
+            raise LookupError(user_id)
+        user.bio = bio
+        user.updated_at = datetime.now(UTC)
+        await user.save()
+        return user
 
     async def update_photo(self, user_id: str, photo_url: str | None) -> UserDocument:
         user = await self.get_by_id(user_id)

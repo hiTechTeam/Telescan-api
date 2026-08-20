@@ -27,6 +27,7 @@ def _report(item: object) -> ModerationReportResponse:
         details=getattr(item, "details", None),
         target_name=getattr(item, "target_name", None),
         target_username=getattr(item, "target_username", None),
+        target_bio=getattr(item, "target_bio", None),
         target_photo_url=getattr(item, "target_photo_url", None),
         status=getattr(item, "status"),
         created_at=getattr(item, "created_at"),

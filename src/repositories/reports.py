@@ -38,6 +38,7 @@ class ReportRepository:
                 "details": details,
                 "target_name": getattr(target, "tg_name", None),
                 "target_username": getattr(target, "tg_username", None),
+                "target_bio": getattr(target, "bio", None),
                 "target_photo_url": getattr(target, "photo_s3_link", None),
                 "created_at": now,
                 "updated_at": now,

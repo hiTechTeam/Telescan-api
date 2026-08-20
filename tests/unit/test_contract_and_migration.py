@@ -34,6 +34,7 @@ def test_public_profile_never_exposes_telegram_id() -> None:
     assert "tgId" not in properties
     assert "telegramId" not in properties
     assert "telescanId" in properties
+    assert "bio" in properties
 
 
 def test_own_profile_contract_cannot_target_another_user() -> None:
@@ -48,6 +49,14 @@ def test_own_profile_contract_cannot_target_another_user() -> None:
     assert set(properties) == {"photo"}
     assert photo_operation["security"] == [{"HTTPBearer": []}]
     assert "requestBody" not in schema["paths"]["/api/v1/users/me"]["delete"]
+    update_operation = schema["paths"]["/api/v1/users/me"]["patch"]
+    assert update_operation["security"] == [{"HTTPBearer": []}]
+    update_schema = update_operation["requestBody"]["content"]["application/json"][
+        "schema"
+    ]
+    update_component = update_schema["$ref"].rsplit("/", maxsplit=1)[1]
+    bio_schema = schema["components"]["schemas"][update_component]["properties"]["bio"]
+    assert bio_schema["anyOf"][0]["maxLength"] == 120
     assert schema["paths"]["/api/v1/profiles/{telescan_id}"]["get"]["security"] == [
         {"HTTPBearer": []}
     ]

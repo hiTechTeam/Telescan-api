@@ -27,6 +27,7 @@ async def test_report_captures_snapshot_and_deduplicates_pending_reason() -> Non
     users = FakeUsers()
     reporter = await users.upsert_telegram_profile(1, "Reporter", "reporter")
     target = await users.upsert_telegram_profile(2, "Target", "target")
+    target.bio = "  Building privacy-friendly proximity tools  "
     target.photo_s3_link = "https://storage.example/target.jpg"
     reports = FakeReports()
     submit = SubmitReport(users, reports)
@@ -52,6 +53,7 @@ async def test_report_captures_snapshot_and_deduplicates_pending_reason() -> Non
     assert first.target_telescan_id == target.telescan_id
     assert first.target_name == "Target"
     assert first.target_username == "target"
+    assert first.target_bio == target.bio
     assert first.target_photo_url == target.photo_s3_link
     assert first.status == ReportStatus.PENDING
 

@@ -7,7 +7,13 @@ from .confirmations import (
     RequestLogoutAll,
 )
 from .issue_link_code import IssueLinkCode
-from .profiles import DeleteAccount, GetOwnProfile, GetPublicProfile, UpdateOwnPhoto
+from .profiles import (
+    DeleteAccount,
+    GetOwnProfile,
+    GetPublicProfile,
+    UpdateOwnBio,
+    UpdateOwnPhoto,
+)
 
 __all__ = [
     "DecideConfirmation",
@@ -21,5 +27,6 @@ __all__ = [
     "RefreshSession",
     "RegisterConfirmationMessage",
     "RequestLogoutAll",
+    "UpdateOwnBio",
     "UpdateOwnPhoto",
 ]

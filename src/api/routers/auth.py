@@ -29,6 +29,7 @@ def _profile(user: object) -> ProfileResponse:
         telescan_id=getattr(user, "telescan_id"),
         name=getattr(user, "tg_name", None),
         username=getattr(user, "tg_username", None),
+        bio=getattr(user, "bio", None),
         photo_url=getattr(user, "photo_s3_link", None),
     )
 

@@ -18,6 +18,7 @@ class UserDocument(Document):
     tg_id: int
     tg_name: str | None = None
     tg_username: str | None = None
+    bio: str | None = None
     photo_s3_link: str | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime
@@ -167,6 +168,7 @@ class ReportDocument(Document):
     details: str | None = None
     target_name: str | None = None
     target_username: str | None = None
+    target_bio: str | None = None
     target_photo_url: str | None = None
     status: ReportStatus = ReportStatus.PENDING
     created_at: AwareDatetime

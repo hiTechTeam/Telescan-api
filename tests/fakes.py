@@ -24,6 +24,7 @@ class FakeUsers:
                 id=user_id,
                 telescan_id=uuid4(),
                 tg_id=tg_id,
+                bio=None,
                 photo_s3_link=None,
                 created_at=datetime.now(UTC),
             )
@@ -44,6 +45,10 @@ class FakeUsers:
 
     async def get_by_tg_id(self, tg_id):
         return self.users.get(self.by_tg.get(tg_id, ""))
+
+    async def update_bio(self, user_id, bio):
+        self.users[user_id].bio = bio
+        return self.users[user_id]
 
     async def update_photo(self, user_id, photo_url):
         self.users[user_id].photo_s3_link = photo_url
@@ -256,6 +261,7 @@ class FakeReports:
             details=details,
             target_name=target.tg_name,
             target_username=target.tg_username,
+            target_bio=target.bio,
             target_photo_url=target.photo_s3_link,
             status=ReportStatus.PENDING,
             created_at=now,

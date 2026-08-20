@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 from src.dependencies.auth import get_current_auth
 from src.dependencies.container import Container, get_container
 from src.domain.entities import AuthContext
-from src.schemas.users import ProfileResponse
+from src.schemas.users import ProfileResponse, ProfileUpdateRequest
 
 router = APIRouter(prefix="/api/v1/users/me", tags=["users"])
 
@@ -15,6 +15,7 @@ def _profile(user: object) -> ProfileResponse:
         telescan_id=getattr(user, "telescan_id"),
         name=getattr(user, "tg_name", None),
         username=getattr(user, "tg_username", None),
+        bio=getattr(user, "bio", None),
         photo_url=getattr(user, "photo_s3_link", None),
     )
 
@@ -25,6 +26,18 @@ async def get_me(
     container: Annotated[Container, Depends(get_container)],
 ) -> ProfileResponse:
     return _profile(await container.get_own_profile.execute(auth.user_id))
+
+
+@router.patch("", response_model=ProfileResponse)
+async def update_my_profile(
+    payload: ProfileUpdateRequest,
+    auth: Annotated[AuthContext, Depends(get_current_auth)],
+    container: Annotated[Container, Depends(get_container)],
+) -> ProfileResponse:
+    await container.rate_limiter.check(
+        f"profile-update:{auth.user_id}", limit=20, window_seconds=3600
+    )
+    return _profile(await container.update_own_bio.execute(auth.user_id, payload.bio))
 
 
 @router.put("/photo", response_model=ProfileResponse)

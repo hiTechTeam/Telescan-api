@@ -120,6 +120,7 @@ Authenticated iOS API:
 | `POST` | `/api/v1/auth/logout-all/request` | Request Telegram confirmation for revoking all sessions |
 | `GET` | `/api/v1/auth/logout-all/requests/{confirmation_id}` | Poll the authenticated Telegram confirmation status |
 | `GET` | `/api/v1/users/me` | Read the current account |
+| `PATCH` | `/api/v1/users/me` | Set or clear the optional BIO (120 characters maximum) |
 | `PUT` | `/api/v1/users/me/photo` | Replace the current account photo |
 | `DELETE` | `/api/v1/users/me/photo` | Remove the current account photo |
 | `DELETE` | `/api/v1/users/me` | Delete the account and owned data |
@@ -130,6 +131,10 @@ Authenticated iOS API:
 | `DELETE` | `/api/v1/users/me/blocks/{telescan_id}` | Unblock a profile |
 
 Bot-only API, protected by `Authorization: Bearer $BOT_SERVICE_SECRET`:
+
+Code issuance requires a non-empty public Telegram username. Requests without
+one are rejected with `422` and `code=telegram_username_required`; no profile or
+link code is created.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -166,7 +171,8 @@ rendering live in `src/api/presentation`, while the HTML shell is kept in
 MongoDB contains eight application collections: `users`, `link_codes`,
 `review_codes`, `device_sessions`, `rate_limits`, `confirmation_requests`,
 `reports`, and `blocks`. Reports capture the reporter and target Telescan IDs,
-reason, optional context, target profile snapshot, moderation status, actor, and
+reason, optional context, target name, username, BIO and photo snapshot,
+moderation status, actor, and
 timestamps.
 Blocks are unique per blocker/target pair and profile reads return `404` when
 either account has blocked the other. The API also owns the

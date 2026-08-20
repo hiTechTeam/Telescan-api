@@ -7,10 +7,11 @@ from fastapi import Request, UploadFile
 
 from src.api.routers.auth import link_device, refresh_session
 from src.api.routers.profiles import get_public_profile
-from src.api.routers.users import replace_my_photo
+from src.api.routers.users import replace_my_photo, update_my_profile
 from src.api.request_scope import request_client_ip
 from src.domain.entities import AuthContext
 from src.schemas.auth import LinkRequest, RefreshRequest
+from src.schemas.users import ProfileUpdateRequest
 
 
 class RecordingLimiter:
@@ -150,3 +151,31 @@ async def test_photo_upload_is_rate_limited_per_authenticated_user() -> None:
     await replace_my_photo(upload, auth, container)
 
     assert limiter.keys == ["photo:requester"]
+
+
+@pytest.mark.asyncio
+async def test_bio_update_is_rate_limited_per_authenticated_user() -> None:
+    limiter = RecordingLimiter()
+    user = SimpleNamespace(
+        telescan_id=uuid4(),
+        tg_name="Ada",
+        tg_username="ada",
+        bio="Open to meetups",
+        photo_s3_link=None,
+    )
+
+    async def execute(*_):
+        return user
+
+    container = SimpleNamespace(
+        rate_limiter=limiter,
+        update_own_bio=SimpleNamespace(execute=execute),
+    )
+    auth = AuthContext(user_id="requester", session_id="session")
+
+    response = await update_my_profile(
+        ProfileUpdateRequest(bio="Open to meetups"), auth, container
+    )
+
+    assert response.bio == "Open to meetups"
+    assert limiter.keys == ["profile-update:requester"]

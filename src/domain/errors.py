@@ -10,6 +10,10 @@ class LinkCodeCollision(TelescanError):
     """Generated code hash already exists and must be regenerated."""
 
 
+class TelegramUsernameRequired(TelescanError):
+    """A public Telegram username is required for Telescan discovery."""
+
+
 class InvalidToken(TelescanError):
     pass
 

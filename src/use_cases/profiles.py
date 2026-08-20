@@ -43,6 +43,18 @@ class GetPublicProfile:
         return user
 
 
+class UpdateOwnBio:
+    def __init__(self, users: UserRepositoryPort) -> None:
+        self._users = users
+
+    async def execute(self, user_id: str, bio: str | None) -> object:
+        user = await self._users.get_by_id(user_id)
+        if user is None:
+            raise UserNotFound()
+        normalized = " ".join(bio.split()) if bio is not None else None
+        return await self._users.update_bio(user_id, normalized or None)
+
+
 class UpdateOwnPhoto:
     def __init__(self, users: UserRepositoryPort, photos: PhotoService) -> None:
         self._users = users
