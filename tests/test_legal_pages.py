@@ -32,7 +32,7 @@ async def test_privacy_page_is_public_html() -> None:
     assert response.headers["content-language"] == "en"
     assert "Privacy Policy" in body
     assert "Effective August 20, 2026" in body
-    assert "optional BIO of up to 120 characters" in body
+    assert "optional BIO of up to 60 characters" in body
     assert "supporting service providers" in body
     assert "WireGuard" not in body
     assert "Account and data deletion" in body

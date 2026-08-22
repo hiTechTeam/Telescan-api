@@ -120,7 +120,7 @@ Authenticated iOS API:
 | `POST` | `/api/v1/auth/logout-all/request` | Request Telegram confirmation for revoking all sessions |
 | `GET` | `/api/v1/auth/logout-all/requests/{confirmation_id}` | Poll the authenticated Telegram confirmation status |
 | `GET` | `/api/v1/users/me` | Read the current account |
-| `PATCH` | `/api/v1/users/me` | Set or clear the optional BIO (120 characters maximum) |
+| `PATCH` | `/api/v1/users/me` | Set or clear the optional BIO (60 characters maximum) |
 | `PUT` | `/api/v1/users/me/photo` | Replace the current account photo |
 | `DELETE` | `/api/v1/users/me/photo` | Remove the current account photo |
 | `DELETE` | `/api/v1/users/me` | Delete the account and owned data |
