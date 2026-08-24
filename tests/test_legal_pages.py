@@ -31,8 +31,9 @@ async def test_privacy_page_is_public_html() -> None:
     assert response.media_type == "text/html"
     assert response.headers["content-language"] == "en"
     assert "Privacy Policy" in body
-    assert "Effective August 20, 2026" in body
+    assert "Effective August 24, 2026" in body
     assert "optional BIO of up to 60 characters" in body
+    assert "removed after 24 hours" in body
     assert "supporting service providers" in body
     assert "WireGuard" not in body
     assert "Account and data deletion" in body
@@ -58,7 +59,7 @@ async def test_terms_page_supports_russian_query() -> None:
     assert response.headers["content-language"] == "ru"
     assert '<html lang="ru">' in body
     assert "Условия использования" in body
-    assert "Действуют с 20 августа 2026 года" in body
+    assert "Действуют с 24 августа 2026 года" in body
     assert "BIO" in body
     assert "поставщиков сетевой и серверной инфраструктуры" in body
     assert "WireGuard" not in body
@@ -78,6 +79,7 @@ async def test_accept_language_selects_supported_language() -> None:
 
     assert response.headers["content-language"] == "ru"
     assert "Политика конфиденциальности" in body
+    assert "удаляется через 24 часа" in body
     assert "Понятно о ваших данных" not in body
 
 

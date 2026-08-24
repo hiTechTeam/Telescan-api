@@ -13,7 +13,7 @@ dependencies = [
   "pytest-asyncio>=1.3.0",
   "uvicorn>=0.38.0",
 ]
-description = "Add your description here"
+description = "Authenticated API and data owner for the Telescan platform"
 name = "telescan-api"
 readme = "README.md"
 requires-python = ">=3.13"

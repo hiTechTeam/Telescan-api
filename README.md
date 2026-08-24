@@ -178,6 +178,10 @@ Blocks are unique per blocker/target pair and profile reads return `404` when
 either account has blocked the other. The API also owns the
 `users/{telescan_id}/...` photo prefix in S3-compatible storage.
 
+The iOS **Met** encounter history is not an API collection. It stores resolved
+public profile snapshots and last-seen timestamps only on the current device,
+prunes them after 24 hours, and never uploads BLE signal or distance history.
+
 Account deletion first revokes all sessions, then removes photos, regular and
 review link codes, confirmation requests, block relationships, device sessions,
 and finally the user record. Abuse reports are retained for moderation, but

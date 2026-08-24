@@ -25,7 +25,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "How Telescan processes account, profile, and nearby "
                 "discovery data — and how you stay in control."
             ),
-            effective_date="Effective August 20, 2026",
+            effective_date="Effective August 24, 2026",
             sections=(
                 (
                     "Overview",
@@ -62,7 +62,15 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Signal strength and approximate distance are processed "
                     "locally and are not sent to the Telescan server. Blocked "
                     "Telescan IDs are cached locally so blocked profiles stay "
-                    "hidden during network outages.</p>",
+                    "hidden during network outages.</p>"
+                    "<p>After a complete profile leaves the nearby list, the "
+                    "app may keep its public profile snapshot and last-seen "
+                    "time in a device-local Met history. The history contains "
+                    "no GPS or distance measurements, is never uploaded, is "
+                    "limited to 500 profiles, and is removed after 24 hours. "
+                    "It can be cleared earlier and is also cleared on sign-out "
+                    "or account deletion. Blocking removes the profile from "
+                    "this local history.</p>",
                 ),
                 (
                     "Reports and blocks",
@@ -77,10 +85,11 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Data we do not collect",
-                    "<p>Telescan does not request or store GPS location, "
+                    "<p>Telescan does not request or store GPS location or "
+                    "server-side movement history, "
                     "contacts, Telegram messages, advertising identifiers, or "
-                    "movement history. It does not include advertising or "
-                    "third-party analytics SDKs.</p>",
+                    "precise Bluetooth-distance history. It does not include "
+                    "advertising or third-party analytics SDKs.</p>",
                 ),
                 (
                     "Use and sharing",
@@ -128,8 +137,9 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Your choices",
-                    "<p>You can disable discoverability, replace or remove your "
-                    "BIO and profile photo, report or block profiles, manage blocked "
+                    "<p>You can disable discoverability, clear the device-local "
+                    "24-hour encounter history, replace or remove your BIO and "
+                    "profile photo, report or block profiles, manage blocked "
                     "profiles, sign out the current device, or delete "
                     "your account and all its sessions. Depending on applicable law, "
                     "you may also have rights to access, correct, restrict, or "
@@ -153,7 +163,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Как Telescan обрабатывает данные аккаунта, фотографии и "
                 "поиска людей рядом — и как вы ими управляете."
             ),
-            effective_date="Действует с 20 августа 2026 года",
+            effective_date="Действует с 24 августа 2026 года",
             sections=(
                 (
                     "Общие положения",
@@ -191,7 +201,15 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "профиль. Сила сигнала и примерное расстояние обрабатываются "
                     "локально и не отправляются на сервер Telescan. Telescan ID "
                     "заблокированных профилей кешируются локально, чтобы они "
-                    "не появлялись без сети.</p>",
+                    "не появлялись без сети.</p>"
+                    "<p>После исчезновения полного профиля из списка рядом "
+                    "приложение может сохранить его публичный снимок и время "
+                    "последней встречи в локальном разделе «Виделись». История "
+                    "не содержит GPS или замеров расстояния, не загружается на "
+                    "сервер, ограничена 500 профилями и удаляется через 24 часа. "
+                    "Её можно очистить раньше; она также очищается при выходе "
+                    "или удалении аккаунта. Блокировка удаляет профиль из этой "
+                    "локальной истории.</p>",
                 ),
                 (
                     "Жалобы и блокировки",
@@ -205,8 +223,9 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Что мы не собираем",
                     "<p>Telescan не запрашивает и не хранит GPS-геолокацию, "
-                    "контакты, сообщения Telegram, рекламные идентификаторы или "
-                    "историю перемещений. В приложении нет рекламы и сторонних "
+                    "серверную историю перемещений, контакты, сообщения Telegram, "
+                    "рекламные идентификаторы или точную историю Bluetooth-"
+                    "расстояний. В приложении нет рекламы и сторонних "
                     "аналитических SDK.</p>",
                 ),
                 (
@@ -255,8 +274,9 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Ваш выбор",
-                    "<p>Вы можете отключить видимость, заменить или удалить "
-                    "BIO и фотографию, пожаловаться или заблокировать профиль, "
+                    "<p>Вы можете отключить видимость, очистить локальную "
+                    "24-часовую историю встреч, заменить или удалить BIO и "
+                    "фотографию, пожаловаться или заблокировать профиль, "
                     "управлять блокировками, выйти на текущем устройстве или удалить "
                     "аккаунт и все его сессии. "
                     "В зависимости от применимого законодательства вы также "
@@ -284,7 +304,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "The essential terms for using the Telescan app, bot, API, "
                 "and related services."
             ),
-            effective_date="Effective August 20, 2026",
+            effective_date="Effective August 24, 2026",
             sections=(
                 (
                     "Agreement",
@@ -382,7 +402,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Основные условия использования приложения Telescan, бота, "
                 "API и связанных сервисов."
             ),
-            effective_date="Действуют с 20 августа 2026 года",
+            effective_date="Действуют с 24 августа 2026 года",
             sections=(
                 (
                     "Согласие с условиями",
