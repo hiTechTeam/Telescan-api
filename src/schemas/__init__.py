@@ -1,4 +1,10 @@
-from .auth import AppleSignInRequest, RefreshRequest, TelegramLinkRequest, TokenResponse
+from .auth import (
+    AppleSignInRequest,
+    LinkRequest,
+    RefreshRequest,
+    TelegramLinkRequest,
+    TokenResponse,
+)
 from .internal import (
     ConfirmationDecisionRequest,
     ConfirmationMessageRequest,
@@ -11,6 +17,7 @@ __all__ = [
     "ConfirmationMessageRequest",
     "InternalLinkCodeResponse",
     "AppleSignInRequest",
+    "LinkRequest",
     "TelegramLinkRequest",
     "ProfileResponse",
     "RefreshRequest",

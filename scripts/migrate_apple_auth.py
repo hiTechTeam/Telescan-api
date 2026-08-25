@@ -25,7 +25,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def migration_report(
-    users, apple_identities, sessions, apply: bool
+    users,
+    apple_identities,
+    sessions,
+    apply: bool,
+    revoke_legacy_sessions: bool = True,
 ) -> dict[str, object]:
     telegram_index = users.index_information().get("uniq_tg_id")
     expected_filter = {"tg_id": {"$type": "number"}}
@@ -62,11 +66,12 @@ def migration_report(
         apple_identities.create_index(
             [("user_id", ASCENDING)], unique=True, name="uniq_user"
         )
-        result = sessions.update_many(
-            legacy_session_filter,
-            {"$set": {"revoked_at": datetime.now(UTC)}},
-        )
-        legacy_sessions_revoked = result.modified_count
+        if revoke_legacy_sessions:
+            result = sessions.update_many(
+                legacy_session_filter,
+                {"$set": {"revoked_at": datetime.now(UTC)}},
+            )
+            legacy_sessions_revoked = result.modified_count
 
     return {
         "telegram_index_rebuild": needs_telegram_rebuild,
@@ -74,6 +79,7 @@ def migration_report(
         "apple_identity_count": apple_identities.count_documents({}),
         "legacy_active_sessions": legacy_active_sessions,
         "legacy_sessions_revoked": legacy_sessions_revoked,
+        "legacy_session_revocation_enabled": revoke_legacy_sessions,
     }
 
 
@@ -90,6 +96,7 @@ def main() -> None:
             database["apple_identities"],
             database["device_sessions"],
             args.apply,
+            revoke_legacy_sessions=not settings.enable_legacy_api,
         )
         mode = "APPLY" if args.apply else "DRY-RUN"
         print(f"{mode}: {report}")

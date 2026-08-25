@@ -207,3 +207,24 @@ def test_apple_auth_migration_revokes_only_legacy_sessions() -> None:
     repeated = migration_report(users, apple_identities, sessions, apply=True)
     assert repeated["legacy_active_sessions"] == 0
     assert repeated["legacy_sessions_revoked"] == 0
+
+
+def test_apple_auth_migration_preserves_sessions_during_temporary_bypass() -> None:
+    users = FakeMigrationCollection(indexes={"uniq_tg_id": {"unique": True}})
+    apple_identities = FakeMigrationCollection()
+    sessions = FakeMigrationCollection(
+        documents=[{"user_id": "legacy-user", "revoked_at": None}]
+    )
+
+    report = migration_report(
+        users,
+        apple_identities,
+        sessions,
+        apply=True,
+        revoke_legacy_sessions=False,
+    )
+
+    assert report["legacy_active_sessions"] == 1
+    assert report["legacy_sessions_revoked"] == 0
+    assert report["legacy_session_revocation_enabled"] is False
+    assert sessions.documents[0]["revoked_at"] is None

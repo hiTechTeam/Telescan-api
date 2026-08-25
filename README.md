@@ -213,6 +213,12 @@ remaining window in `Retry-After`.
 
 ## Migration from the legacy model
 
+`ENABLE_LEGACY_API=true` temporarily restores Telegram-code session creation
+for Personal Team Debug builds that cannot carry the Sign in with Apple
+entitlement. While enabled, protected endpoints accept those legacy sessions,
+profile discovery includes legacy profiles, and repeated deployments do not
+revoke them. Keep the flag disabled for the release Apple-first flow.
+
 Before the first Apple-auth deployment, rebuild the Telegram unique index as a
 partial index so multiple authenticated accounts can exist before Telegram is
 linked. The command is dry-run by default:

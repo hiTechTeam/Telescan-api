@@ -3,13 +3,18 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from src.api.request_scope import request_client_ip
 from src.dependencies.auth import get_current_auth
 from src.dependencies.container import Container, get_container
 from src.domain.entities import AuthContext
-from src.schemas.auth import AppleSignInRequest, RefreshRequest, TokenResponse
+from src.schemas.auth import (
+    AppleSignInRequest,
+    LinkRequest,
+    RefreshRequest,
+    TokenResponse,
+)
 from src.schemas.internal import ConfirmationResponse
 from src.schemas.users import LinkedAccountResponse, ProfileResponse
 
@@ -36,6 +41,24 @@ def _profile(user: object) -> ProfileResponse:
             and str(getattr(user, "tg_username", "") or "").strip()
         ),
     )
+
+
+@router.post("/link", response_model=LinkedAccountResponse)
+async def link_device_for_development(
+    request: Request,
+    payload: LinkRequest,
+    container: Annotated[Container, Depends(get_container)],
+) -> LinkedAccountResponse:
+    if not container.settings.enable_legacy_api:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    await container.rate_limiter.check(
+        f"auth-link:ip:{request_client_ip(request)}", limit=30, window_seconds=300
+    )
+    await container.rate_limiter.check(
+        f"auth-link:device:{payload.device_id}", limit=10, window_seconds=300
+    )
+    tokens, user = await container.link_device.execute(payload.code, payload.device_id)
+    return LinkedAccountResponse(tokens=_tokens(tokens), profile=_profile(user))
 
 
 @router.post("/apple", response_model=LinkedAccountResponse)
