@@ -5,12 +5,12 @@ from uuid import uuid4
 import pytest
 from fastapi import Request, UploadFile
 
-from src.api.routers.auth import link_device, refresh_session
+from src.api.routers.auth import refresh_session, sign_in_with_apple
 from src.api.routers.profiles import get_public_profile
 from src.api.routers.users import replace_my_photo, update_my_profile
 from src.api.request_scope import request_client_ip
 from src.domain.entities import AuthContext
-from src.schemas.auth import LinkRequest, RefreshRequest
+from src.schemas.auth import AppleSignInRequest, RefreshRequest
 from src.schemas.users import ProfileUpdateRequest
 
 
@@ -39,7 +39,7 @@ def make_request(
 
 
 @pytest.mark.asyncio
-async def test_link_limit_is_scoped_to_client_and_device() -> None:
+async def test_apple_sign_in_limit_is_scoped_to_client_and_device() -> None:
     device_id = uuid4()
     limiter = RecordingLimiter()
     tokens = SimpleNamespace(
@@ -51,6 +51,7 @@ async def test_link_limit_is_scoped_to_client_and_device() -> None:
         telescan_id=uuid4(),
         tg_name="Ada",
         tg_username="ada",
+        tg_id=10,
         photo_s3_link=None,
     )
 
@@ -59,17 +60,22 @@ async def test_link_limit_is_scoped_to_client_and_device() -> None:
 
     container = SimpleNamespace(
         rate_limiter=limiter,
-        link_device=SimpleNamespace(execute=execute),
+        sign_in_with_apple=SimpleNamespace(execute=execute),
     )
-    await link_device(
+    await sign_in_with_apple(
         make_request(real_ip="203.0.113.20"),
-        LinkRequest(code="12345678", deviceId=device_id),
+        AppleSignInRequest(
+            identityToken="identity-token-that-is-long-enough",
+            nonce="raw-nonce-that-is-long-enough",
+            deviceId=device_id,
+            name="Ada",
+        ),
         container,
     )
 
     assert limiter.keys == [
-        "auth-link:ip:203.0.113.20",
-        f"auth-link:device:{device_id}",
+        "auth-apple:ip:203.0.113.20",
+        f"auth-apple:device:{device_id}",
     ]
 
 
@@ -111,6 +117,7 @@ async def test_profile_limit_is_scoped_to_authenticated_user() -> None:
         telescan_id=target_id,
         tg_name="Ada",
         tg_username="ada",
+        tg_id=10,
         photo_s3_link=None,
     )
 
@@ -134,6 +141,7 @@ async def test_photo_upload_is_rate_limited_per_authenticated_user() -> None:
         telescan_id=uuid4(),
         tg_name="Ada",
         tg_username="ada",
+        tg_id=10,
         photo_s3_link="https://storage.example/photo.jpg",
     )
 
@@ -160,6 +168,7 @@ async def test_bio_update_is_rate_limited_per_authenticated_user() -> None:
         telescan_id=uuid4(),
         tg_name="Ada",
         tg_username="ada",
+        tg_id=10,
         bio="Open to meetups",
         photo_s3_link=None,
     )

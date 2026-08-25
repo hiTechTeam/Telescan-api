@@ -28,4 +28,5 @@ async def get_public_profile(
         username=getattr(user, "tg_username", None),
         bio=getattr(user, "bio", None),
         photo_url=getattr(user, "photo_s3_link", None),
+        telegram_linked=True,
     )

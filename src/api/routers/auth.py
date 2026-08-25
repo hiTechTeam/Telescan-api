@@ -9,7 +9,7 @@ from src.api.request_scope import request_client_ip
 from src.dependencies.auth import get_current_auth
 from src.dependencies.container import Container, get_container
 from src.domain.entities import AuthContext
-from src.schemas.auth import LinkRequest, RefreshRequest, TokenResponse
+from src.schemas.auth import AppleSignInRequest, RefreshRequest, TokenResponse
 from src.schemas.internal import ConfirmationResponse
 from src.schemas.users import LinkedAccountResponse, ProfileResponse
 
@@ -31,22 +31,31 @@ def _profile(user: object) -> ProfileResponse:
         username=getattr(user, "tg_username", None),
         bio=getattr(user, "bio", None),
         photo_url=getattr(user, "photo_s3_link", None),
+        telegram_linked=bool(
+            getattr(user, "tg_id", None)
+            and str(getattr(user, "tg_username", "") or "").strip()
+        ),
     )
 
 
-@router.post("/link", response_model=LinkedAccountResponse)
-async def link_device(
+@router.post("/apple", response_model=LinkedAccountResponse)
+async def sign_in_with_apple(
     request: Request,
-    payload: LinkRequest,
+    payload: AppleSignInRequest,
     container: Annotated[Container, Depends(get_container)],
 ) -> LinkedAccountResponse:
     await container.rate_limiter.check(
-        f"auth-link:ip:{request_client_ip(request)}", limit=30, window_seconds=300
+        f"auth-apple:ip:{request_client_ip(request)}", limit=30, window_seconds=300
     )
     await container.rate_limiter.check(
-        f"auth-link:device:{payload.device_id}", limit=10, window_seconds=300
+        f"auth-apple:device:{payload.device_id}", limit=10, window_seconds=300
     )
-    tokens, user = await container.link_device.execute(payload.code, payload.device_id)
+    tokens, user = await container.sign_in_with_apple.execute(
+        payload.identity_token,
+        payload.nonce,
+        payload.device_id,
+        payload.name,
+    )
     return LinkedAccountResponse(tokens=_tokens(tokens), profile=_profile(user))
 
 

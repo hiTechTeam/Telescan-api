@@ -53,7 +53,14 @@ docker compose config --quiet
 
 ## Authentication model
 
-The bot requests a random eight-character link code for a Telegram account.
+The iOS app authenticates the primary Telescan account with Sign in with Apple.
+The API verifies the Apple identity token signature, issuer, audience, expiry,
+and nonce against Apple's public keys, then creates a device session. The Apple
+subject is stored separately from the public profile and is the only way to
+create or resume a Telescan session.
+
+After authentication, the bot requests a random eight-character linking code
+for a Telegram account.
 Only an HMAC-SHA-256 digest is stored in the `link_codes` collection. A new code
 revokes any earlier unused code for that account; a code expires after the
 configured 5–10 minute TTL (10 minutes by default), is consumed atomically, and
@@ -66,8 +73,12 @@ S3 failure preserves the previous photo without preventing code issuance.
 The S3 client validates TLS with `AWS_CA_BUNDLE` when set, otherwise with the
 operating system's trusted CA bundle.
 
-The iOS app submits the clear code with a random installation `device_id`.
-Successful linking creates or replaces that device's session and returns:
+The iOS app submits the clear code to an authenticated endpoint. Successful
+linking attaches the verified Telegram profile to the existing Apple-authenticated
+account and never creates a session by itself. Existing pre-migration Telegram
+profiles are adopted without changing their public Telescan ID, BIO, or photo.
+
+Sign in with Apple creates or replaces that device's session and returns:
 
 - a short-lived HS256 access JWT containing the user and session IDs;
 - a random refresh token whose SHA-256 digest is stored server-side;
@@ -75,7 +86,9 @@ Successful linking creates or replaces that device's session and returns:
 
 Refresh tokens rotate on every refresh. Reuse of an old refresh token revokes
 the affected session. Every protected request validates both the access JWT and
-the active `DeviceSession`, so logout and revocation take effect immediately.
+the active `DeviceSession` and its Apple identity, so a legacy Telegram session
+cannot become primary authentication and logout or revocation takes effect
+immediately.
 
 App Review credentials use the separate `review_codes` collection and a
 dedicated HMAC secret. They remain scoped to one existing review profile, are
@@ -109,7 +122,7 @@ Public legal pages and authentication bootstrap:
 | Method | Path | Authentication |
 | --- | --- | --- |
 | `GET` | `/privacy`, `/terms` | Public |
-| `POST` | `/api/v1/auth/link` | One-time link code |
+| `POST` | `/api/v1/auth/apple` | Sign in with Apple identity token and nonce |
 | `POST` | `/api/v1/auth/refresh` | Refresh token |
 
 Authenticated iOS API:
@@ -120,6 +133,7 @@ Authenticated iOS API:
 | `POST` | `/api/v1/auth/logout-all/request` | Request Telegram confirmation for revoking all sessions |
 | `GET` | `/api/v1/auth/logout-all/requests/{confirmation_id}` | Poll the authenticated Telegram confirmation status |
 | `GET` | `/api/v1/users/me` | Read the current account |
+| `POST` | `/api/v1/users/me/telegram/link` | Attach Telegram with a one-time bot code |
 | `PATCH` | `/api/v1/users/me` | Set or clear the optional BIO (60 characters maximum) |
 | `PUT` | `/api/v1/users/me/photo` | Replace the current account photo |
 | `DELETE` | `/api/v1/users/me/photo` | Remove the current account photo |
@@ -168,7 +182,7 @@ rendering live in `src/api/presentation`, while the HTML shell is kept in
 
 ## Data ownership and deletion
 
-MongoDB contains eight application collections: `users`, `link_codes`,
+MongoDB contains nine application collections: `users`, `apple_identities`, `link_codes`,
 `review_codes`, `device_sessions`, `rate_limits`, `confirmation_requests`,
 `reports`, and `blocks`. Reports capture the reporter and target Telescan IDs,
 reason, optional context, target name, username, BIO and photo snapshot,
@@ -198,6 +212,24 @@ scoped to the authenticated actor. Responses rejected with `429` include the
 remaining window in `Retry-After`.
 
 ## Migration from the legacy model
+
+Before the first Apple-auth deployment, rebuild the Telegram unique index as a
+partial index so multiple authenticated accounts can exist before Telegram is
+linked. The command is dry-run by default:
+
+```sh
+uv run python -m scripts.migrate_apple_auth
+uv run python -m scripts.migrate_apple_auth \
+  --apply \
+  --confirm MIGRATE_APPLE_AUTH
+```
+
+Run this migration while the API is stopped and before starting the new image.
+It also creates the unique Apple subject and user indexes and revokes active
+sessions whose accounts do not yet have an Apple identity. It does not modify
+profiles, Telegram IDs, photos, encounter history, or public Telescan IDs.
+Affected users sign in with Apple and use a fresh bot code; linking adopts their
+existing Telegram profile and preserves its data.
 
 The migration is idempotent and dry-run by default:
 
@@ -243,9 +275,12 @@ localhost binding and an SSH tunnel documented in
 ## Repository workflow
 
 Pull requests and pushes to `main` run Ruff, Pyright, pytest, and a Docker
-build. A successful push to `main` deploys through the production environment
-and waits for the readiness health check. Concurrency serializes production
-deployments so two API releases cannot update the host at the same time.
+build. A successful push to `main` creates and verifies an encrypted off-host
+database backup, builds the new image while the current API remains available,
+runs the idempotent Apple-auth migration during a short API stop, deploys
+through the production environment, and waits for the readiness health check.
+Concurrency serializes production deployments so two API releases cannot
+update the host at the same time.
 
 Cross-service architecture, production operations, and security boundaries are
 maintained in the private

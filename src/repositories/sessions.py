@@ -81,6 +81,47 @@ class SessionRepository:
             {"$set": {"revoked_at": now}},
         )
 
+    async def move_to_user(
+        self,
+        session_id: str,
+        current_user_id: str,
+        target_user_id: str,
+    ) -> DeviceSessionDocument:
+        if not all(
+            PydanticObjectId.is_valid(value)
+            for value in (session_id, current_user_id, target_user_id)
+        ):
+            raise LookupError(session_id)
+        collection = DeviceSessionDocument.get_pymongo_collection()
+        current = await collection.find_one(
+            {
+                "_id": PydanticObjectId(session_id),
+                "user_id": PydanticObjectId(current_user_id),
+                "revoked_at": None,
+            }
+        )
+        if current is None:
+            raise LookupError(session_id)
+        await collection.delete_many(
+            {
+                "user_id": PydanticObjectId(target_user_id),
+                "device_id": current["device_id"],
+                "_id": {"$ne": PydanticObjectId(session_id)},
+            }
+        )
+        raw = await collection.find_one_and_update(
+            {
+                "_id": PydanticObjectId(session_id),
+                "user_id": PydanticObjectId(current_user_id),
+                "revoked_at": None,
+            },
+            {"$set": {"user_id": PydanticObjectId(target_user_id)}},
+            return_document=ReturnDocument.AFTER,
+        )
+        if raw is None:
+            raise LookupError(session_id)
+        return DeviceSessionDocument.model_validate(raw)
+
     async def delete_for_user(self, user_id: str) -> None:
         await DeviceSessionDocument.find(
             DeviceSessionDocument.user_id == PydanticObjectId(user_id)

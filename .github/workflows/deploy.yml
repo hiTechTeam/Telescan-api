@@ -53,7 +53,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     environment: production
     steps:
       - name: Checkout
@@ -68,6 +68,19 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Back up production database
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" <<'REMOTE'
+          set -Eeuo pipefail
+          test -f /etc/systemd/system/telescan-mongodb-backup.service
+          sudo systemctl start telescan-mongodb-backup.service
+          test "$(systemctl show telescan-mongodb-backup.service --property=Result --value)" = "success"
+          test "$(systemctl show telescan-mongodb-backup.service --property=ExecMainStatus --value)" = "0"
+          REMOTE
 
       - name: Upload release
         env:
@@ -94,7 +107,25 @@ jobs:
           cd /home/ubuntu/telescan/Telescan-api
           test -s .env
           docker compose config --quiet
-          docker compose up -d --build --no-deps telescan-api
+          docker compose build telescan-api
+          docker compose run --rm --no-deps telescan-api \
+            /app/.venv/bin/python -m scripts.migrate_apple_auth
+
+          docker compose stop --timeout 30 telescan-api
+          migration_complete=false
+          restart_previous_release() {
+            if [ "$migration_complete" != "true" ]; then
+              docker compose start telescan-api || true
+            fi
+          }
+          trap restart_previous_release EXIT
+
+          docker compose run --rm --no-deps telescan-api \
+            /app/.venv/bin/python -m scripts.migrate_apple_auth \
+            --apply --confirm MIGRATE_APPLE_AUTH
+          migration_complete=true
+
+          docker compose up -d --no-deps telescan-api
           CONTAINER_ID="$(docker compose ps -q telescan-api)"
           test -n "$CONTAINER_ID"
           for attempt in {1..20}; do
@@ -106,4 +137,5 @@ jobs:
           done
           docker compose ps telescan-api
           test "$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_ID")" = "healthy"
+          trap - EXIT
           REMOTE

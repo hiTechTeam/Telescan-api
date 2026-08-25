@@ -9,12 +9,31 @@ from src.domain.enums import (
     ReportStatus,
 )
 from src.domain.errors import LinkCodeCollision
+from src.domain.entities import AppleIdentityClaims
+from src.domain.errors import AppleIdentityConflict
 
 
 class FakeUsers:
     def __init__(self) -> None:
         self.users: dict[str, SimpleNamespace] = {}
         self.by_tg: dict[int, str] = {}
+
+    async def create_unlinked(self):
+        user_id = f"user-{len(self.users) + 1}"
+        now = datetime.now(UTC)
+        user = SimpleNamespace(
+            id=user_id,
+            telescan_id=uuid4(),
+            tg_id=None,
+            tg_name=None,
+            tg_username=None,
+            bio=None,
+            photo_s3_link=None,
+            created_at=now,
+            updated_at=now,
+        )
+        self.users[user_id] = user
+        return user
 
     async def upsert_telegram_profile(self, tg_id, tg_name, tg_username):
         user_id = self.by_tg.get(tg_id, f"user-{len(self.users) + 1}")
@@ -55,7 +74,65 @@ class FakeUsers:
         return self.users[user_id]
 
     async def delete(self, user_id):
-        self.users.pop(user_id, None)
+        user = self.users.pop(user_id, None)
+        if user is not None and getattr(user, "tg_id", None) is not None:
+            self.by_tg.pop(user.tg_id, None)
+
+
+class FakeAppleIdentities:
+    def __init__(self) -> None:
+        self.by_subject: dict[str, SimpleNamespace] = {}
+        self.by_user: dict[str, SimpleNamespace] = {}
+
+    async def get_by_subject(self, subject):
+        return self.by_subject.get(subject)
+
+    async def get_by_user_id(self, user_id):
+        return self.by_user.get(user_id)
+
+    async def create(self, subject, user_id, email, name, now):
+        if subject in self.by_subject or user_id in self.by_user:
+            raise AppleIdentityConflict()
+        identity = SimpleNamespace(
+            subject=subject,
+            user_id=user_id,
+            email=email,
+            name=name,
+            created_at=now,
+            updated_at=now,
+        )
+        self.by_subject[subject] = identity
+        self.by_user[user_id] = identity
+        return identity
+
+    async def move_to_user(self, subject, current_user_id, target_user_id, now):
+        identity = self.by_subject.get(subject)
+        if identity is None or identity.user_id != current_user_id:
+            raise AppleIdentityConflict()
+        conflict = self.by_user.get(target_user_id)
+        if conflict is not None and conflict is not identity:
+            raise AppleIdentityConflict()
+        self.by_user.pop(current_user_id, None)
+        identity.user_id = target_user_id
+        identity.updated_at = now
+        self.by_user[target_user_id] = identity
+        return identity
+
+    async def delete_for_user(self, user_id):
+        identity = self.by_user.pop(user_id, None)
+        if identity is not None:
+            self.by_subject.pop(identity.subject, None)
+
+
+class FakeAppleVerifier:
+    def __init__(self, subject="apple-subject", email="relay@example.com") -> None:
+        self.subject = subject
+        self.email = email
+        self.calls = []
+
+    async def verify(self, identity_token, raw_nonce):
+        self.calls.append((identity_token, raw_nonce))
+        return AppleIdentityClaims(subject=self.subject, email=self.email)
 
 
 class FakeLinkCodes:
@@ -154,6 +231,21 @@ class FakeSessions:
         for session in self.items.values():
             if session.user_id == user_id:
                 session.revoked_at = now
+
+    async def move_to_user(self, session_id, current_user_id, target_user_id):
+        session = self.items.get(session_id)
+        if session is None or session.user_id != current_user_id:
+            raise LookupError(session_id)
+        self.items = {
+            key: value
+            for key, value in self.items.items()
+            if key == session_id
+            or not (
+                value.user_id == target_user_id and value.device_id == session.device_id
+            )
+        }
+        session.user_id = target_user_id
+        return session
 
     async def delete_for_user(self, user_id):
         self.items = {

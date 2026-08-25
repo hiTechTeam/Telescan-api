@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime
 
-from src.domain.entities import AuthTokens
+from src.domain.entities import AccessToken, AuthTokens
 from src.domain.errors import InvalidToken, RefreshTokenReused, SessionRevoked
 from src.domain.ports import SessionRepositoryPort
 from src.infrastructure.jwt import TokenService
@@ -25,6 +25,13 @@ class SessionService:
         return AuthTokens(
             access_token=self._tokens.issue_access(user_id, session_id, now),
             refresh_token=refresh,
+            expires_in=self._tokens.access_ttl_seconds,
+        )
+
+    def issue_access(self, user_id: str, session: object, now: datetime) -> AccessToken:
+        session_id = str(getattr(session, "id"))
+        return AccessToken(
+            access_token=self._tokens.issue_access(user_id, session_id, now),
             expires_in=self._tokens.access_ttl_seconds,
         )
 
