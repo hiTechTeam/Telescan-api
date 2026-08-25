@@ -106,27 +106,27 @@ jobs:
           set -Eeuo pipefail
           cd /home/ubuntu/telescan/Telescan-api
           test -s .env
-          docker compose config --quiet
-          docker compose build telescan-api
-          docker compose run --rm --no-deps telescan-api \
-            /app/.venv/bin/python -m scripts.migrate_apple_auth
+          docker compose config --quiet </dev/null
+          docker compose build telescan-api </dev/null
+          docker compose run --rm --no-deps -T telescan-api \
+            /app/.venv/bin/python -m scripts.migrate_apple_auth </dev/null
 
-          docker compose stop --timeout 30 telescan-api
+          docker compose stop --timeout 30 telescan-api </dev/null
           migration_complete=false
           restart_previous_release() {
             if [ "$migration_complete" != "true" ]; then
-              docker compose start telescan-api || true
+              docker compose start telescan-api </dev/null || true
             fi
           }
           trap restart_previous_release EXIT
 
-          docker compose run --rm --no-deps telescan-api \
+          docker compose run --rm --no-deps -T telescan-api \
             /app/.venv/bin/python -m scripts.migrate_apple_auth \
-            --apply --confirm MIGRATE_APPLE_AUTH
+            --apply --confirm MIGRATE_APPLE_AUTH </dev/null
           migration_complete=true
 
-          docker compose up -d --no-deps telescan-api
-          CONTAINER_ID="$(docker compose ps -q telescan-api)"
+          docker compose up -d --no-deps telescan-api </dev/null
+          CONTAINER_ID="$(docker compose ps -q telescan-api </dev/null)"
           test -n "$CONTAINER_ID"
           for attempt in {1..20}; do
             HEALTH_STATUS="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_ID")"
@@ -135,7 +135,7 @@ jobs:
             fi
             sleep 5
           done
-          docker compose ps telescan-api
+          docker compose ps telescan-api </dev/null
           test "$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_ID")" = "healthy"
           trap - EXIT
           REMOTE
