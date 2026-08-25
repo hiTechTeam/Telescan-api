@@ -152,7 +152,7 @@ def build_container(settings: Settings) -> Container:
             code_service,
             photos,
             settings.link_code_ttl_seconds,
-            LegacyCodePublisher(legacy_repository, settings.enable_legacy_api),
+            LegacyCodePublisher(legacy_repository, settings.legacy_api_active),
         ),
         sign_in_with_apple=SignInWithApple(
             users,
@@ -194,7 +194,7 @@ def build_container(settings: Settings) -> Container:
         get_public_profile=GetPublicProfile(
             users,
             blocks,
-            None if settings.enable_legacy_api else apple_identities,
+            None if settings.legacy_api_active else apple_identities,
         ),
         update_own_bio=UpdateOwnBio(users),
         update_own_photo=update_own_photo,

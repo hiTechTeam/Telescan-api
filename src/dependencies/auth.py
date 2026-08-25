@@ -25,8 +25,11 @@ async def get_current_auth(
     if await container.users.get_by_id(user_id) is None:
         raise InvalidToken()
     identity = await container.apple_identities.get_by_user_id(user_id)
+    settings = getattr(container, "settings", None)
     legacy_enabled = getattr(
-        getattr(container, "settings", None), "enable_legacy_api", False
+        settings,
+        "legacy_api_active",
+        getattr(settings, "enable_legacy_api", False),
     )
     if identity is None and not legacy_enabled:
         raise InvalidToken()

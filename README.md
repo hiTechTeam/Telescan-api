@@ -169,8 +169,10 @@ protected by
 | `GET` | `/internal/v1/moderation/reports/{id}` | Read a report and its captured profile snapshot |
 | `PATCH` | `/internal/v1/moderation/reports/{id}` | Record review state, moderator actor, and note |
 
-Legacy `/v1` routes are hidden from OpenAPI and are registered only when
-`ENABLE_LEGACY_API=true`. Keep this compatibility window short.
+Legacy `/v1` routes are hidden from OpenAPI and are available only when
+`ENABLE_LEGACY_API=true` and the timezone-aware `LEGACY_API_EXPIRES_AT` is
+still in the future. Production rejects a compatibility window longer than 14
+days.
 
 The current iOS MVP does not expose logout-all; it offers current-device logout
 and account deletion. The logout-all endpoints and Telegram confirmation flow
@@ -215,9 +217,11 @@ remaining window in `Retry-After`.
 
 `ENABLE_LEGACY_API=true` temporarily restores Telegram-code session creation
 for Personal Team Debug builds that cannot carry the Sign in with Apple
-entitlement. While enabled, protected endpoints accept those legacy sessions,
-profile discovery includes legacy profiles, and repeated deployments do not
-revoke them. Keep the flag disabled for the release Apple-first flow.
+entitlement. Set `LEGACY_API_EXPIRES_AT` to a timezone-aware ISO 8601 timestamp;
+after that instant the compatibility path and its sessions stop working without
+a restart. While active, profile discovery includes legacy profiles and repeated
+deployments do not revoke their sessions. Keep the flag disabled for the release
+Apple-first flow.
 
 Before the first Apple-auth deployment, rebuild the Telegram unique index as a
 partial index so multiple authenticated accounts can exist before Telegram is
@@ -255,9 +259,9 @@ uv run python -m scripts.migrate_users \
   --confirm REMOVE_LEGACY_CODES
 ```
 
-While `ENABLE_LEGACY_API=true`, newly issued codes are additionally published as
-legacy SHA-256 hashes for already released old clients. Disable legacy routes
-before removing those fields.
+While the time-limited legacy API is active, newly issued codes are additionally
+published as legacy SHA-256 hashes for already released old clients. Disable
+legacy routes before removing those fields.
 
 ## Production boundary
 
