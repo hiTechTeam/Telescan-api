@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from scripts.migrate_apple_auth import migration_report
 from scripts.migrate_users import migrate_users
 from src.app import create_app
@@ -70,6 +72,20 @@ class FakeMigrationCollection:
         result = Result()
         result.modified_count = modified
         return result
+
+
+def test_legacy_api_automatically_expires() -> None:
+    active = Settings(
+        enable_legacy_api=True,
+        legacy_api_expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    expired = Settings(
+        enable_legacy_api=True,
+        legacy_api_expires_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+
+    assert active.legacy_api_active is True
+    assert expired.legacy_api_active is False
 
 
 def test_public_profile_never_exposes_telegram_id() -> None:

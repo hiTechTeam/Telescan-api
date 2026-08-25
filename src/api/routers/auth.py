@@ -49,7 +49,7 @@ async def link_device_for_development(
     payload: LinkRequest,
     container: Annotated[Container, Depends(get_container)],
 ) -> LinkedAccountResponse:
-    if not container.settings.enable_legacy_api:
+    if not container.settings.legacy_api_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     await container.rate_limiter.check(
         f"auth-link:ip:{request_client_ip(request)}", limit=30, window_seconds=300

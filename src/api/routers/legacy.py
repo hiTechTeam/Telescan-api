@@ -13,7 +13,7 @@ router = APIRouter(prefix="/v1", tags=["legacy"], include_in_schema=False)
 
 
 def _enabled(container: Container) -> None:
-    if not container.settings.enable_legacy_api:
+    if not container.settings.legacy_api_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
 

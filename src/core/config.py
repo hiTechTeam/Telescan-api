@@ -5,6 +5,7 @@ as plain values makes imports side-effect free and makes every external service
 replaceable in tests.
 """
 
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from urllib.parse import quote_plus
 
@@ -54,6 +55,7 @@ class Settings(BaseSettings):
     internal_request_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     cors_origins: list[str] = Field(default_factory=list)
     enable_legacy_api: bool = False
+    legacy_api_expires_at: datetime | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -71,10 +73,29 @@ class Settings(BaseSettings):
             "?authSource=admin&uuidRepresentation=standard"
         )
 
+    @property
+    def legacy_api_active(self) -> bool:
+        expires_at = self.legacy_api_expires_at
+        if not self.enable_legacy_api or expires_at is None:
+            return False
+        if expires_at.tzinfo is None:
+            return False
+        return expires_at.astimezone(UTC) > datetime.now(UTC)
+
     @model_validator(mode="after")
     def reject_development_secrets_in_production(self) -> "Settings":
         if self.environment.lower() != "production":
             return self
+        if self.enable_legacy_api:
+            expires_at = self.legacy_api_expires_at
+            if expires_at is None or expires_at.tzinfo is None:
+                raise ValueError(
+                    "LEGACY_API_EXPIRES_AT must be timezone-aware when legacy API is enabled"
+                )
+            if expires_at.astimezone(UTC) - datetime.now(UTC) > timedelta(days=14):
+                raise ValueError(
+                    "Legacy API compatibility window cannot exceed 14 days"
+                )
         insecure = (
             self.jwt_secret.startswith("development-"),
             self.link_code_hmac_secret.startswith("development-"),

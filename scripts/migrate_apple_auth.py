@@ -96,7 +96,7 @@ def main() -> None:
             database["apple_identities"],
             database["device_sessions"],
             args.apply,
-            revoke_legacy_sessions=not settings.enable_legacy_api,
+            revoke_legacy_sessions=not settings.legacy_api_active,
         )
         mode = "APPLY" if args.apply else "DRY-RUN"
         print(f"{mode}: {report}")
