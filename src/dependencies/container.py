@@ -25,7 +25,12 @@ from src.services import (
     PhotoService,
     SessionService,
 )
-from src.use_cases.auth import LinkTelegramAccount, RefreshSession, SignInWithApple
+from src.use_cases.auth import (
+    LinkDevice,
+    LinkTelegramAccount,
+    RefreshSession,
+    SignInWithApple,
+)
 from src.use_cases.confirmations import (
     DecideConfirmation,
     GetConfirmationStatus,
@@ -63,6 +68,7 @@ class Container:
     rate_limiter: RateLimiter
     issue_link_code: IssueLinkCode
     sign_in_with_apple: SignInWithApple
+    link_device: LinkDevice
     link_telegram: LinkTelegramAccount
     refresh_session: RefreshSession
     request_logout_all: RequestLogoutAll
@@ -156,6 +162,16 @@ def build_container(settings: Settings) -> Container:
             session_service,
             settings.refresh_token_ttl_seconds,
         ),
+        link_device=LinkDevice(
+            users,
+            link_codes,
+            sessions,
+            session_service,
+            code_service,
+            settings.refresh_token_ttl_seconds,
+            review_codes,
+            review_code_service,
+        ),
         link_telegram=LinkTelegramAccount(
             users,
             apple_identities,
@@ -175,7 +191,11 @@ def build_container(settings: Settings) -> Container:
         list_pending_confirmations=ListPendingConfirmations(confirmations),
         register_confirmation_message=RegisterConfirmationMessage(confirmations),
         get_own_profile=GetOwnProfile(users),
-        get_public_profile=GetPublicProfile(users, blocks, apple_identities),
+        get_public_profile=GetPublicProfile(
+            users,
+            blocks,
+            None if settings.enable_legacy_api else apple_identities,
+        ),
         update_own_bio=UpdateOwnBio(users),
         update_own_photo=update_own_photo,
         delete_account=delete_account,

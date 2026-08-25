@@ -1,4 +1,4 @@
-from .auth import LinkTelegramAccount, RefreshSession, SignInWithApple
+from .auth import LinkDevice, LinkTelegramAccount, RefreshSession, SignInWithApple
 from .confirmations import (
     DecideConfirmation,
     GetConfirmationStatus,
@@ -22,6 +22,7 @@ __all__ = [
     "GetOwnProfile",
     "GetPublicProfile",
     "IssueLinkCode",
+    "LinkDevice",
     "LinkTelegramAccount",
     "SignInWithApple",
     "ListPendingConfirmations",

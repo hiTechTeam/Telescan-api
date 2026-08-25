@@ -12,6 +12,12 @@ class AppleSignInRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class LinkRequest(BaseModel):
+    code: str = Field(min_length=8, max_length=64)
+    device_id: Annotated[UUID, Field(alias="deviceId")]
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class TelegramLinkRequest(BaseModel):
     code: str = Field(min_length=8, max_length=64)
     model_config = ConfigDict(populate_by_name=True)

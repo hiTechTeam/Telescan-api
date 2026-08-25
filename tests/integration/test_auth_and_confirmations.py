@@ -21,7 +21,7 @@ from src.infrastructure.jwt import TokenService
 from src.services.codes import LinkCodeService
 from src.services.photos import PhotoService
 from src.services.sessions import SessionService
-from src.use_cases.auth import LinkTelegramAccount, SignInWithApple
+from src.use_cases.auth import LinkDevice, LinkTelegramAccount, SignInWithApple
 from src.use_cases.confirmations import (
     DecideConfirmation,
     GetConfirmationStatus,
@@ -70,6 +70,14 @@ def build_auth_flow():
         session_service,
         code_service,
     )
+    link_device = LinkDevice(
+        users,
+        codes,
+        sessions,
+        session_service,
+        code_service,
+        30 * 86400,
+    )
     return SimpleNamespace(
         users=users,
         identities=identities,
@@ -79,6 +87,7 @@ def build_auth_flow():
         issue=issue,
         apple=apple,
         link=link,
+        link_device=link_device,
     )
 
 
@@ -440,6 +449,29 @@ async def test_legacy_telegram_session_is_not_accepted_as_primary_auth() -> None
 
     with pytest.raises(InvalidToken):
         await get_current_auth(credentials, container)
+
+
+@pytest.mark.asyncio
+async def test_temporary_legacy_auth_is_accepted_only_when_enabled() -> None:
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+    issued = await flow.issue.execute(10, "Ada", "ada", None, now)
+    tokens, user = await flow.link_device.execute(issued.code, uuid4(), now)
+    container = SimpleNamespace(
+        tokens=flow.tokens,
+        sessions=flow.sessions,
+        users=flow.users,
+        apple_identities=flow.identities,
+        settings=SimpleNamespace(enable_legacy_api=True),
+    )
+    credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer", credentials=tokens.access_token
+    )
+
+    auth = await get_current_auth(credentials, container)
+
+    assert auth.user_id == str(user.id)
+    assert await flow.identities.get_by_user_id(str(user.id)) is None
 
 
 @pytest.mark.asyncio

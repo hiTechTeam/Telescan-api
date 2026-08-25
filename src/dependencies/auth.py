@@ -24,6 +24,10 @@ async def get_current_auth(
         raise SessionRevoked()
     if await container.users.get_by_id(user_id) is None:
         raise InvalidToken()
-    if await container.apple_identities.get_by_user_id(user_id) is None:
+    identity = await container.apple_identities.get_by_user_id(user_id)
+    legacy_enabled = getattr(
+        getattr(container, "settings", None), "enable_legacy_api", False
+    )
+    if identity is None and not legacy_enabled:
         raise InvalidToken()
     return AuthContext(user_id=user_id, session_id=session_id)
