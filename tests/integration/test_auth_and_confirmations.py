@@ -12,6 +12,7 @@ from src.domain.entities import AuthContext
 from src.domain.enums import ConfirmationStatus, LinkCodeStatus, TelegramPhotoState
 from src.domain.errors import (
     ConfirmationNotFound,
+    InvalidToken,
     InvalidLinkCode,
     SessionRevoked,
     TelegramUsernameRequired,
@@ -20,7 +21,7 @@ from src.infrastructure.jwt import TokenService
 from src.services.codes import LinkCodeService
 from src.services.photos import PhotoService
 from src.services.sessions import SessionService
-from src.use_cases.auth import LinkDevice
+from src.use_cases.auth import LinkTelegramAccount, SignInWithApple
 from src.use_cases.confirmations import (
     DecideConfirmation,
     GetConfirmationStatus,
@@ -29,8 +30,10 @@ from src.use_cases.confirmations import (
 from src.use_cases.issue_link_code import IssueLinkCode
 from src.use_cases.profiles import DeleteAccount, UpdateOwnBio
 from tests.fakes import (
-    FakeBot,
+    FakeAppleIdentities,
+    FakeAppleVerifier,
     FakeBlocks,
+    FakeBot,
     FakeConfirmations,
     FakeLinkCodes,
     FakeReports,
@@ -42,48 +45,99 @@ from tests.fakes import (
 
 def build_auth_flow():
     users = FakeUsers()
+    identities = FakeAppleIdentities()
     codes = FakeLinkCodes()
     sessions = FakeSessions()
     code_service = LinkCodeService("hmac-secret", 8)
     tokens = TokenService("jwt-secret-that-is-at-least-32-bytes", "issuer", 900)
+    session_service = SessionService(sessions, tokens)
     issue = IssueLinkCode(
         users, codes, code_service, PhotoService(FakeStorage(), 1024), 300
     )
-    link = LinkDevice(
+    apple = SignInWithApple(
         users,
-        codes,
+        identities,
+        FakeAppleVerifier(),
         sessions,
-        SessionService(sessions, tokens),
-        code_service,
+        session_service,
         30 * 86400,
     )
-    return users, codes, sessions, issue, link
+    link = LinkTelegramAccount(
+        users,
+        identities,
+        codes,
+        sessions,
+        session_service,
+        code_service,
+    )
+    return SimpleNamespace(
+        users=users,
+        identities=identities,
+        codes=codes,
+        sessions=sessions,
+        tokens=tokens,
+        issue=issue,
+        apple=apple,
+        link=link,
+    )
+
+
+async def sign_in(flow, device_id, now):
+    tokens, user = await flow.apple.execute(
+        "apple-identity-token", "raw-nonce-value", device_id, "Ada", now
+    )
+    session_id = next(
+        value.id
+        for value in flow.sessions.items.values()
+        if value.device_id == device_id and value.user_id == str(user.id)
+    )
+    return tokens, user, str(user.id), session_id
+
+
+@pytest.mark.asyncio
+async def test_apple_sign_in_issues_session_before_telegram_link() -> None:
+    flow = build_auth_flow()
+    tokens, user, user_id, session_id = await sign_in(flow, uuid4(), datetime.now(UTC))
+
+    assert tokens.refresh_token
+    assert user_id == str(user.id)
+    assert user.tg_id is None
+    assert await flow.identities.get_by_user_id(user_id) is not None
+    assert await flow.sessions.get_active(session_id, datetime.now(UTC)) is not None
 
 
 @pytest.mark.asyncio
 async def test_issue_revokes_previous_and_code_expires() -> None:
-    users, codes, _, issue, link = build_auth_flow()
+    flow = build_auth_flow()
     now = datetime.now(UTC)
-    first = await issue.execute(10, "Ada", "ada", None, now)
-    second = await issue.execute(10, "Ada", "ada", None, now + timedelta(seconds=1))
-    assert codes.items[next(iter(codes.items))].status == LinkCodeStatus.REVOKED
+    _, _, user_id, session_id = await sign_in(flow, uuid4(), now)
+    first = await flow.issue.execute(10, "Ada", "ada", None, now)
+    second = await flow.issue.execute(
+        10, "Ada", "ada", None, now + timedelta(seconds=1)
+    )
+    assert (
+        flow.codes.items[next(iter(flow.codes.items))].status == LinkCodeStatus.REVOKED
+    )
     with pytest.raises(InvalidLinkCode):
-        await link.execute(first.code, uuid4(), now + timedelta(seconds=2))
+        await flow.link.execute(
+            first.code, user_id, session_id, now + timedelta(seconds=2)
+        )
     with pytest.raises(InvalidLinkCode):
-        await link.execute(second.code, uuid4(), now + timedelta(minutes=6))
-    assert len(users.users) == 1
+        await flow.link.execute(
+            second.code, user_id, session_id, now + timedelta(minutes=6)
+        )
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("username", [None, "", "   "])
 async def test_issue_requires_public_telegram_username(username: str | None) -> None:
-    users, codes, _, issue, _ = build_auth_flow()
+    flow = build_auth_flow()
 
     with pytest.raises(TelegramUsernameRequired):
-        await issue.execute(10, "Ada", username, None)
+        await flow.issue.execute(10, "Ada", username, None)
 
-    assert not users.users
-    assert not codes.items
+    assert not flow.users.users
+    assert not flow.codes.items
 
 
 @pytest.mark.asyncio
@@ -101,11 +155,11 @@ async def test_bio_is_trimmed_and_can_be_removed() -> None:
 
 @pytest.mark.asyncio
 async def test_telegram_profile_refresh_preserves_telescan_bio() -> None:
-    users, _, _, issue, _ = build_auth_flow()
-    user = await users.upsert_telegram_profile(10, "Ada", "ada")
-    await users.update_bio(str(user.id), "Looking for product designers")
+    flow = build_auth_flow()
+    user = await flow.users.upsert_telegram_profile(10, "Ada", "ada")
+    await flow.users.update_bio(str(user.id), "Looking for product designers")
 
-    await issue.execute(10, "Ada Updated", "ada_updated", None)
+    await flow.issue.execute(10, "Ada Updated", "ada_updated", None)
 
     assert user.tg_name == "Ada Updated"
     assert user.tg_username == "ada_updated"
@@ -114,19 +168,24 @@ async def test_telegram_profile_refresh_preserves_telescan_bio() -> None:
 
 @pytest.mark.asyncio
 async def test_link_rejects_profile_that_lost_telegram_username() -> None:
-    users, codes, sessions, _, link = build_auth_flow()
-    user = await users.upsert_telegram_profile(10, "Ada", None)
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+    _, _, user_id, session_id = await sign_in(flow, uuid4(), now)
+    user = await flow.users.upsert_telegram_profile(10, "Ada", None)
     service = LinkCodeService("hmac-secret", 8)
     clear_code = service.generate()
-    now = datetime.now(UTC)
-    await codes.create(
+    await flow.codes.create(
         service.hash(clear_code), str(user.id), now, now + timedelta(minutes=5)
     )
 
     with pytest.raises(TelegramUsernameRequired):
-        await link.execute(clear_code, uuid4(), now + timedelta(seconds=1))
+        await flow.link.execute(
+            clear_code, user_id, session_id, now + timedelta(seconds=1)
+        )
 
-    assert not sessions.items
+    session = await flow.sessions.get_active(session_id, now + timedelta(seconds=1))
+    assert session is not None
+    assert session.user_id == user_id
 
 
 @pytest.mark.asyncio
@@ -191,36 +250,58 @@ async def test_issue_removes_photo_absent_from_telegram() -> None:
 
 
 @pytest.mark.asyncio
-async def test_link_is_one_time_under_concurrency_and_supports_multiple_devices() -> (
-    None
-):
-    _, _, sessions, issue, link = build_auth_flow()
+async def test_link_is_one_time_and_preserves_existing_telegram_profile() -> None:
+    flow = build_auth_flow()
     now = datetime.now(UTC)
-    issued = await issue.execute(10, "Ada", "ada", None, now)
+    _, temporary_user, user_id, session_id = await sign_in(flow, uuid4(), now)
+    telegram_user = await flow.users.upsert_telegram_profile(10, "Ada", "ada")
+    telegram_user.bio = "Existing profile"
+    old_telescan_id = telegram_user.telescan_id
+    issued = await flow.issue.execute(10, "Ada", "ada", None, now)
+
     results = await asyncio.gather(
-        link.execute(issued.code, uuid4(), now + timedelta(seconds=1)),
-        link.execute(issued.code, uuid4(), now + timedelta(seconds=1)),
+        flow.link.execute(issued.code, user_id, session_id, now + timedelta(seconds=1)),
+        flow.link.execute(issued.code, user_id, session_id, now + timedelta(seconds=1)),
         return_exceptions=True,
     )
-    assert sum(not isinstance(result, Exception) for result in results) == 1
-    assert sum(isinstance(result, InvalidLinkCode) for result in results) == 1
 
-    second = await issue.execute(10, "Ada", "ada", None, now + timedelta(seconds=2))
-    await link.execute(second.code, uuid4(), now + timedelta(seconds=3))
-    assert len(sessions.items) == 2
+    successful = [result for result in results if not isinstance(result, Exception)]
+    assert len(successful) == 1
+    assert sum(isinstance(result, Exception) for result in results) == 1
+    _, linked_user = successful[0]
+    assert linked_user.id == telegram_user.id
+    assert linked_user.telescan_id == old_telescan_id
+    assert linked_user.bio == "Existing profile"
+    assert await flow.users.get_by_id(str(temporary_user.id)) is None
+    identity = await flow.identities.get_by_user_id(str(telegram_user.id))
+    assert identity is not None
+
+
+@pytest.mark.asyncio
+async def test_linked_apple_account_supports_multiple_devices() -> None:
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+    _, _, first_user_id, first_session_id = await sign_in(flow, uuid4(), now)
+    issued = await flow.issue.execute(10, "Ada", "ada", None, now)
+    _, linked_user = await flow.link.execute(
+        issued.code, first_user_id, first_session_id, now + timedelta(seconds=1)
+    )
+
+    _, second_user, _, _ = await sign_in(flow, uuid4(), now + timedelta(seconds=2))
+
+    assert second_user.id == linked_user.id
+    assert len(flow.sessions.items) == 2
 
 
 @pytest.mark.asyncio
 async def test_review_code_is_separate_scoped_and_one_time() -> None:
-    users = FakeUsers()
-    regular_codes = FakeLinkCodes()
+    flow = build_auth_flow()
     review_codes = FakeLinkCodes()
-    sessions = FakeSessions()
-    regular_service = LinkCodeService("regular-hmac-secret", 8)
     review_service = LinkCodeService("review-hmac-secret", 8)
-    token_service = TokenService("jwt-secret-that-is-at-least-32-bytes", "issuer", 900)
+    regular_service = LinkCodeService("hmac-secret", 8)
     now = datetime.now(UTC)
-    user = await users.upsert_telegram_profile(10, "Review", "telescan_review")
+    _, _, current_user_id, session_id = await sign_in(flow, uuid4(), now)
+    user = await flow.users.upsert_telegram_profile(10, "Review", "telescan_review")
     clear_code = review_service.generate()
     await review_codes.create(
         review_service.hash(clear_code),
@@ -228,37 +309,42 @@ async def test_review_code_is_separate_scoped_and_one_time() -> None:
         now,
         now + timedelta(days=30),
     )
-    link = LinkDevice(
-        users,
-        regular_codes,
-        sessions,
-        SessionService(sessions, token_service),
+    link = LinkTelegramAccount(
+        flow.users,
+        flow.identities,
+        flow.codes,
+        flow.sessions,
+        SessionService(flow.sessions, flow.tokens),
         regular_service,
-        30 * 86400,
         review_codes,
         review_service,
     )
 
-    _, linked_user = await link.execute(clear_code, uuid4(), now + timedelta(seconds=1))
+    _, linked_user = await link.execute(
+        clear_code, current_user_id, session_id, now + timedelta(seconds=1)
+    )
 
     assert linked_user.id == user.id
-    assert not regular_codes.items
+    assert not flow.codes.items
     with pytest.raises(InvalidLinkCode):
-        await link.execute(clear_code, uuid4(), now + timedelta(seconds=2))
+        await link.execute(
+            clear_code, str(user.id), session_id, now + timedelta(seconds=2)
+        )
 
 
 @pytest.mark.asyncio
 async def test_confirmation_cancel_confirm_and_expire() -> None:
-    users, _, sessions, issue, link = build_auth_flow()
+    flow = build_auth_flow()
     now = datetime.now(UTC)
-    code = await issue.execute(10, "Ada", "ada", None, now)
-    await link.execute(code.code, uuid4(), now)
+    _, _, current_user_id, session_id = await sign_in(flow, uuid4(), now)
+    code = await flow.issue.execute(10, "Ada", "ada", None, now)
+    _, user = await flow.link.execute(code.code, current_user_id, session_id, now)
     confirmations = FakeConfirmations()
     bot = FakeBot()
-    request = RequestLogoutAll(users, confirmations, bot, 300)
-    decide = DecideConfirmation(users, confirmations, sessions)
+    request = RequestLogoutAll(flow.users, confirmations, bot, 300)
+    decide = DecideConfirmation(flow.users, confirmations, flow.sessions)
     status = GetConfirmationStatus(confirmations)
-    user_id = next(iter(users.users))
+    user_id = str(user.id)
 
     cancelled = await request.execute(user_id, now)
     assert (
@@ -272,13 +358,15 @@ async def test_confirmation_cancel_confirm_and_expire() -> None:
     assert (
         await status.execute(cancelled.confirmation_id, user_id, now)
     ).status == ConfirmationStatus.CANCELLED
-    assert all(session.revoked_at is None for session in sessions.items.values())
+    assert all(session.revoked_at is None for session in flow.sessions.items.values())
 
     confirmed = await request.execute(user_id, now)
     await decide.execute(
         confirmed.confirmation_id, 10, ConfirmationStatus.CONFIRMED, now
     )
-    assert all(session.revoked_at is not None for session in sessions.items.values())
+    assert all(
+        session.revoked_at is not None for session in flow.sessions.items.values()
+    )
 
     expired = await request.execute(user_id, now)
     result = await status.execute(
@@ -290,27 +378,27 @@ async def test_confirmation_cancel_confirm_and_expire() -> None:
 
 @pytest.mark.asyncio
 async def test_logout_revokes_only_current_session_and_blocks_it_immediately() -> None:
-    users, _, sessions, issue, link = build_auth_flow()
+    flow = build_auth_flow()
     now = datetime.now(UTC)
     first_device_id = uuid4()
     second_device_id = uuid4()
-    first_code = await issue.execute(10, "Ada", "ada", None, now)
-    first_tokens, user = await link.execute(first_code.code, first_device_id, now)
-    second_code = await issue.execute(
-        10, "Ada", "ada", None, now + timedelta(seconds=1)
+    _, _, current_user_id, first_session_id = await sign_in(flow, first_device_id, now)
+    first_code = await flow.issue.execute(10, "Ada", "ada", None, now)
+    first_tokens, user = await flow.link.execute(
+        first_code.code, current_user_id, first_session_id, now
     )
-    await link.execute(second_code.code, second_device_id, now + timedelta(seconds=1))
-    token_service = TokenService("jwt-secret-that-is-at-least-32-bytes", "issuer", 900)
-    user_id, first_session_id = token_service.decode_access(first_tokens.access_token)
+    await sign_in(flow, second_device_id, now + timedelta(seconds=1))
     second_session_id = next(
         session.id
-        for session in sessions.items.values()
+        for session in flow.sessions.items.values()
         if session.device_id == second_device_id
     )
+    user_id, first_session_id = flow.tokens.decode_access(first_tokens.access_token)
     container = SimpleNamespace(
-        tokens=token_service,
-        sessions=sessions,
-        users=users,
+        tokens=flow.tokens,
+        sessions=flow.sessions,
+        users=flow.users,
+        apple_identities=flow.identities,
     )
 
     credentials = HTTPAuthorizationCredentials(
@@ -324,17 +412,43 @@ async def test_logout_revokes_only_current_session_and_blocks_it_immediately() -
 
     with pytest.raises(SessionRevoked):
         await get_current_auth(credentials, container)
-    assert await sessions.get_active(second_session_id, datetime.now(UTC)) is not None
+    assert (
+        await flow.sessions.get_active(second_session_id, datetime.now(UTC)) is not None
+    )
 
 
 @pytest.mark.asyncio
-async def test_account_deletion_cleans_domain_data_and_photos_separately_from_logout() -> (
-    None
-):
-    users, codes, sessions, issue, link = build_auth_flow()
+async def test_legacy_telegram_session_is_not_accepted_as_primary_auth() -> None:
+    flow = build_auth_flow()
     now = datetime.now(UTC)
-    issued = await issue.execute(10, "Ada", "ada", None, now)
-    _, user = await link.execute(issued.code, uuid4(), now)
+    user = await flow.users.upsert_telegram_profile(10, "Ada", "ada")
+    session = await flow.sessions.create_or_replace(
+        str(user.id), uuid4(), now, now + timedelta(days=30)
+    )
+    tokens = await SessionService(flow.sessions, flow.tokens).issue(
+        str(user.id), session, now
+    )
+    container = SimpleNamespace(
+        tokens=flow.tokens,
+        sessions=flow.sessions,
+        users=flow.users,
+        apple_identities=flow.identities,
+    )
+    credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer", credentials=tokens.access_token
+    )
+
+    with pytest.raises(InvalidToken):
+        await get_current_auth(credentials, container)
+
+
+@pytest.mark.asyncio
+async def test_account_deletion_cleans_domain_data_and_apple_identity() -> None:
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+    _, _, current_user_id, session_id = await sign_in(flow, uuid4(), now)
+    issued = await flow.issue.execute(10, "Ada", "ada", None, now)
+    _, user = await flow.link.execute(issued.code, current_user_id, session_id, now)
     user.photo_s3_link = "https://storage.example/users/photo.jpg"
     confirmations = FakeConfirmations()
     review_codes = FakeLinkCodes()
@@ -347,22 +461,24 @@ async def test_account_deletion_cleans_domain_data_and_photos_separately_from_lo
     await confirmations.create_logout_all(str(user.id), now, now + timedelta(minutes=5))
     storage = FakeStorage()
     delete = DeleteAccount(
-        users,
-        codes,
-        sessions,
+        flow.users,
+        flow.codes,
+        flow.sessions,
         confirmations,
         FakeReports(),
         FakeBlocks(),
         PhotoService(storage, 1024),
         review_codes,
+        flow.identities,
     )
 
     await delete.execute(str(user.id))
 
-    assert await users.get_by_id(str(user.id)) is None
-    assert not sessions.items
-    assert not codes.items
+    assert await flow.users.get_by_id(str(user.id)) is None
+    assert not flow.sessions.items
+    assert not flow.codes.items
     assert not confirmations.items
     assert not review_codes.items
+    assert await flow.identities.get_by_user_id(str(user.id)) is None
     assert user.photo_s3_link in storage.deleted
     assert f"users/{user.telescan_id}/" in storage.deleted

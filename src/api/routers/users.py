@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 from src.dependencies.auth import get_current_auth
 from src.dependencies.container import Container, get_container
 from src.domain.entities import AuthContext
-from src.schemas.users import ProfileResponse, ProfileUpdateRequest
+from src.schemas.auth import AccessTokenResponse, TelegramLinkRequest
+from src.schemas.users import (
+    ProfileResponse,
+    ProfileUpdateRequest,
+    TelegramLinkResponse,
+)
 
 router = APIRouter(prefix="/api/v1/users/me", tags=["users"])
 
@@ -17,6 +22,17 @@ def _profile(user: object) -> ProfileResponse:
         username=getattr(user, "tg_username", None),
         bio=getattr(user, "bio", None),
         photo_url=getattr(user, "photo_s3_link", None),
+        telegram_linked=bool(
+            getattr(user, "tg_id", None)
+            and str(getattr(user, "tg_username", "") or "").strip()
+        ),
+    )
+
+
+def _access(value: object) -> AccessTokenResponse:
+    return AccessTokenResponse(
+        access_token=getattr(value, "access_token"),
+        expires_in=getattr(value, "expires_in"),
     )
 
 
@@ -26,6 +42,21 @@ async def get_me(
     container: Annotated[Container, Depends(get_container)],
 ) -> ProfileResponse:
     return _profile(await container.get_own_profile.execute(auth.user_id))
+
+
+@router.post("/telegram/link", response_model=TelegramLinkResponse)
+async def link_my_telegram(
+    payload: TelegramLinkRequest,
+    auth: Annotated[AuthContext, Depends(get_current_auth)],
+    container: Annotated[Container, Depends(get_container)],
+) -> TelegramLinkResponse:
+    await container.rate_limiter.check(
+        f"telegram-link:{auth.user_id}", limit=10, window_seconds=300
+    )
+    access, user = await container.link_telegram.execute(
+        payload.code, auth.user_id, auth.session_id
+    )
+    return TelegramLinkResponse(access=_access(access), profile=_profile(user))
 
 
 @router.patch("", response_model=ProfileResponse)

@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from fastapi import Request
 
 from src.core.config import Settings
+from src.infrastructure.apple import AppleIdentityVerifier
 from src.infrastructure.bot import BotInternalClient
 from src.infrastructure.jwt import TokenService
 from src.infrastructure.rate_limit import MongoRateLimiter, RateLimiter
 from src.infrastructure.s3 import S3PhotoStorage
 from src.repositories import (
+    AppleIdentityRepository,
     BlockRepository,
     ConfirmationRepository,
     LinkCodeRepository,
@@ -23,7 +25,7 @@ from src.services import (
     PhotoService,
     SessionService,
 )
-from src.use_cases.auth import LinkDevice, RefreshSession
+from src.use_cases.auth import LinkTelegramAccount, RefreshSession, SignInWithApple
 from src.use_cases.confirmations import (
     DecideConfirmation,
     GetConfirmationStatus,
@@ -55,11 +57,13 @@ from src.use_cases.profiles import (
 class Container:
     settings: Settings
     users: UserRepository
+    apple_identities: AppleIdentityRepository
     sessions: SessionRepository
     tokens: TokenService
     rate_limiter: RateLimiter
     issue_link_code: IssueLinkCode
-    link_device: LinkDevice
+    sign_in_with_apple: SignInWithApple
+    link_telegram: LinkTelegramAccount
     refresh_session: RefreshSession
     request_logout_all: RequestLogoutAll
     get_confirmation_status: GetConfirmationStatus
@@ -83,6 +87,7 @@ class Container:
 
 def build_container(settings: Settings) -> Container:
     users = UserRepository()
+    apple_identities = AppleIdentityRepository()
     link_codes = LinkCodeRepository()
     review_codes = ReviewCodeRepository()
     sessions = SessionRepository()
@@ -108,6 +113,9 @@ def build_container(settings: Settings) -> Container:
     )
     photos = PhotoService(storage, settings.max_photo_bytes)
     session_service = SessionService(sessions, token_service)
+    apple_verifier = AppleIdentityVerifier(
+        settings.apple_bundle_id, settings.apple_keys_timeout_seconds
+    )
     bot = BotInternalClient(
         settings.bot_internal_base_url,
         settings.bot_service_secret,
@@ -123,10 +131,12 @@ def build_container(settings: Settings) -> Container:
         blocks,
         photos,
         review_codes,
+        apple_identities,
     )
     return Container(
         settings=settings,
         users=users,
+        apple_identities=apple_identities,
         sessions=sessions,
         tokens=token_service,
         rate_limiter=MongoRateLimiter(),
@@ -138,13 +148,21 @@ def build_container(settings: Settings) -> Container:
             settings.link_code_ttl_seconds,
             LegacyCodePublisher(legacy_repository, settings.enable_legacy_api),
         ),
-        link_device=LinkDevice(
+        sign_in_with_apple=SignInWithApple(
             users,
+            apple_identities,
+            apple_verifier,
+            sessions,
+            session_service,
+            settings.refresh_token_ttl_seconds,
+        ),
+        link_telegram=LinkTelegramAccount(
+            users,
+            apple_identities,
             link_codes,
             sessions,
             session_service,
             code_service,
-            settings.refresh_token_ttl_seconds,
             review_codes,
             review_code_service,
         ),
@@ -157,7 +175,7 @@ def build_container(settings: Settings) -> Container:
         list_pending_confirmations=ListPendingConfirmations(confirmations),
         register_confirmation_message=RegisterConfirmationMessage(confirmations),
         get_own_profile=GetOwnProfile(users),
-        get_public_profile=GetPublicProfile(users, blocks),
+        get_public_profile=GetPublicProfile(users, blocks, apple_identities),
         update_own_bio=UpdateOwnBio(users),
         update_own_photo=update_own_photo,
         delete_account=delete_account,

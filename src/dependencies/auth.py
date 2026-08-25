@@ -24,4 +24,6 @@ async def get_current_auth(
         raise SessionRevoked()
     if await container.users.get_by_id(user_id) is None:
         raise InvalidToken()
+    if await container.apple_identities.get_by_user_id(user_id) is None:
+        raise InvalidToken()
     return AuthContext(user_id=user_id, session_id=session_id)

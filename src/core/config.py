@@ -35,6 +35,8 @@ class Settings(BaseSettings):
         default="development-moderation-secret-change-me", min_length=32
     )
     jwt_issuer: str = "telescan-api"
+    apple_bundle_id: str = "hiTeam.TelescaniOS"
+    apple_keys_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     access_token_ttl_seconds: int = Field(default=900, ge=300, le=3600)
     refresh_token_ttl_seconds: int = Field(default=2_592_000, ge=86_400)
     link_code_ttl_seconds: int = Field(default=600, ge=300, le=600)

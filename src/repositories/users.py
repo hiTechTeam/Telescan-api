@@ -8,6 +8,17 @@ from src.infrastructure.mongodb.documents import UserDocument
 
 
 class UserRepository:
+    async def create_unlinked(self) -> UserDocument:
+        now = datetime.now(UTC)
+        user = UserDocument(
+            telescan_id=uuid4(),
+            tg_id=None,
+            created_at=now,
+            updated_at=now,
+        )
+        await user.insert()
+        return user
+
     async def upsert_telegram_profile(
         self,
         tg_id: int,

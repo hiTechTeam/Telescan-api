@@ -15,7 +15,7 @@ from src.domain.enums import (
 
 class UserDocument(Document):
     telescan_id: UUID = Field(default_factory=uuid4)
-    tg_id: int
+    tg_id: int | None = None
     tg_name: str | None = None
     tg_username: str | None = None
     bio: str | None = None
@@ -29,7 +29,28 @@ class UserDocument(Document):
             IndexModel(
                 [("telescan_id", ASCENDING)], unique=True, name="uniq_telescan_id"
             ),
-            IndexModel([("tg_id", ASCENDING)], unique=True, name="uniq_tg_id"),
+            IndexModel(
+                [("tg_id", ASCENDING)],
+                unique=True,
+                name="uniq_tg_id",
+                partialFilterExpression={"tg_id": {"$type": "number"}},
+            ),
+        ]
+
+
+class AppleIdentityDocument(Document):
+    subject: str
+    user_id: PydanticObjectId
+    email: str | None = None
+    name: str | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+    class Settings:
+        name = "apple_identities"
+        indexes = [
+            IndexModel([("subject", ASCENDING)], unique=True, name="uniq_subject"),
+            IndexModel([("user_id", ASCENDING)], unique=True, name="uniq_user"),
         ]
 
 
@@ -246,6 +267,7 @@ class BlockDocument(Document):
 
 DOCUMENT_MODELS = [
     UserDocument,
+    AppleIdentityDocument,
     LinkCodeDocument,
     ReviewCodeDocument,
     DeviceSessionDocument,

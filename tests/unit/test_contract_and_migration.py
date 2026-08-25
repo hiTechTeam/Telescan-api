@@ -1,3 +1,4 @@
+from scripts.migrate_apple_auth import migration_report
 from scripts.migrate_users import migrate_users
 from src.app import create_app
 from src.core.config import Settings
@@ -27,6 +28,48 @@ class FakeCollection:
         user = next(item for item in self.users if item["_id"] == query["_id"])
         user.update(update["$set"])
         return Result()
+
+
+class FakeMigrationCollection:
+    def __init__(self, documents=None, indexes=None):
+        self.documents = documents or []
+        self.indexes = indexes or {}
+
+    def index_information(self):
+        return self.indexes
+
+    def drop_index(self, name):
+        self.indexes.pop(name, None)
+
+    def create_index(self, _keys, *, unique, name, **options):
+        self.indexes[name] = {"unique": unique, **options}
+
+    def distinct(self, key):
+        return [document[key] for document in self.documents if key in document]
+
+    def count_documents(self, query):
+        if not query:
+            return len(self.documents)
+        excluded = query.get("user_id", {}).get("$nin", [])
+        return sum(
+            document.get("revoked_at") is None
+            and document.get("user_id") not in excluded
+            for document in self.documents
+        )
+
+    def update_many(self, query, update):
+        excluded = query["user_id"]["$nin"]
+        modified = 0
+        for document in self.documents:
+            if (
+                document.get("revoked_at") is None
+                and document["user_id"] not in excluded
+            ):
+                document.update(update["$set"])
+                modified += 1
+        result = Result()
+        result.modified_count = modified
+        return result
 
 
 def test_public_profile_never_exposes_telegram_id() -> None:
@@ -84,6 +127,10 @@ def test_user_has_unique_telescan_and_telegram_indexes() -> None:
     assert any(
         index.get("unique") and index.get("name") == "uniq_tg_id" for index in documents
     )
+    telegram_index = next(
+        index for index in documents if index.get("name") == "uniq_tg_id"
+    )
+    assert telegram_index["partialFilterExpression"] == {"tg_id": {"$type": "number"}}
 
 
 def test_moderation_documents_have_deduplication_and_lookup_indexes() -> None:
@@ -131,3 +178,32 @@ def test_migration_is_dry_run_and_idempotent() -> None:
 
     repeated = migrate_users(collection, apply=True)
     assert repeated["would_change"] == 0
+
+
+def test_apple_auth_migration_revokes_only_legacy_sessions() -> None:
+    users = FakeMigrationCollection(indexes={"uniq_tg_id": {"unique": True}})
+    apple_identities = FakeMigrationCollection(
+        documents=[{"subject": "apple-sub", "user_id": "apple-user"}]
+    )
+    sessions = FakeMigrationCollection(
+        documents=[
+            {"user_id": "apple-user", "revoked_at": None},
+            {"user_id": "legacy-user", "revoked_at": None},
+        ]
+    )
+
+    dry_run = migration_report(users, apple_identities, sessions, apply=False)
+    assert dry_run["legacy_active_sessions"] == 1
+    assert sessions.documents[1]["revoked_at"] is None
+
+    applied = migration_report(users, apple_identities, sessions, apply=True)
+    assert applied["legacy_sessions_revoked"] == 1
+    assert sessions.documents[0]["revoked_at"] is None
+    assert sessions.documents[1]["revoked_at"] is not None
+    assert users.indexes["uniq_tg_id"]["partialFilterExpression"] == {
+        "tg_id": {"$type": "number"}
+    }
+
+    repeated = migration_report(users, apple_identities, sessions, apply=True)
+    assert repeated["legacy_active_sessions"] == 0
+    assert repeated["legacy_sessions_revoked"] == 0

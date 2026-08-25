@@ -14,6 +14,18 @@ class TelegramUsernameRequired(TelescanError):
     """A public Telegram username is required for Telescan discovery."""
 
 
+class InvalidAppleCredential(TelescanError):
+    """The Sign in with Apple credential could not be verified."""
+
+
+class AppleIdentityConflict(TelescanError):
+    """The Apple identity is already attached to another Telescan account."""
+
+
+class TelegramIdentityConflict(TelescanError):
+    """The Telegram identity is already attached to another Apple account."""
+
+
 class InvalidToken(TelescanError):
     pass
 

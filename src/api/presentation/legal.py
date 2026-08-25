@@ -36,7 +36,11 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Data we process",
-                    "<p>When you register through the Telescan Telegram bot, "
+                    "<p>When you use Sign in with Apple, we receive a stable "
+                    "Apple account identifier and, only when you choose to "
+                    "share them, your name and email or Apple private-relay "
+                    "email. Apple authenticates your primary Telescan account.</p>"
+                    "<p>When you then link Telegram through the Telescan bot, "
                     "we receive your Telegram ID, first name, username, and "
                     "current public profile photo. At your request, the API "
                     "issues a short-lived, one-time linking code. Only a "
@@ -47,7 +51,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "picker. The app resizes and compresses it before uploading "
                     "a copy to Telescan cloud storage. You may also add an "
                     "optional BIO of up to 60 characters.</p>"
-                    "<ul><li>Telegram ID, first name, and username</li>"
+                    "<ul><li>Apple account identifier and optional name and email</li>"
+                    "<li>Telegram ID, first name, and username</li>"
                     "<li>Random Telescan ID and active device sessions</li>"
                     "<li>Temporary keyed hashes of one-time linking codes</li>"
                     "<li>Telegram or user-selected profile photo</li>"
@@ -93,7 +98,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Use and sharing",
-                    "<p>Account data is used only to register users, display "
+                    "<p>Account data is used only to authenticate users, link "
+                    "their required Telegram contact, display "
                     "shared profiles, manage BIO and profile photos, operate nearby "
                     "discovery, process reports and blocks, prevent abuse, "
                     "and maintain the service. Telescan does not "
@@ -106,7 +112,9 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Security and retention",
-                    "<p>API traffic uses encrypted HTTPS. One-time linking "
+                    "<p>API traffic uses encrypted HTTPS. Sign in with Apple "
+                    "identity tokens are verified against Apple's public keys. "
+                    "One-time Telegram linking "
                     "codes are sent to the API over HTTPS and "
                     "retained only as keyed hashes "
                     "until use or expiry. Device sessions use short-lived "
@@ -127,7 +135,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Account and data deletion",
-                    "<p>Open your profile in the app, select <strong>Delete "
+                    "<p>Open the account menu on the Telegram linking screen "
+                    "or your profile in the app, select <strong>Delete "
                     "account</strong>, and confirm. Telescan removes the live "
                     "account record, linking codes, device sessions, blocks, "
                     "stored photos, and local account data and caches. Report "
@@ -175,7 +184,11 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Какие данные мы обрабатываем",
-                    "<p>При регистрации через Telegram-бота Telescan мы "
+                    "<p>При входе с Apple мы получаем постоянный идентификатор "
+                    "аккаунта Apple, а имя и email или приватный relay-email Apple — "
+                    "только если вы решили ими поделиться. Apple используется для "
+                    "аутентификации основного аккаунта Telescan.</p>"
+                    "<p>При последующей привязке Telegram через бота Telescan мы "
                     "получаем ваш Telegram ID, имя, username и текущую публичную "
                     "фотографию профиля. По вашему запросу API выпускает "
                     "одноразовый код привязки с коротким сроком действия. До "
@@ -186,7 +199,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "системный медиапикер. Приложение уменьшает и сжимает его "
                     "перед загрузкой копии в облачное хранилище. Вы также можете "
                     "добавить необязательное BIO длиной до 60 символов.</p>"
-                    "<ul><li>Telegram ID, имя и username</li>"
+                    "<ul><li>Идентификатор Apple и необязательные имя и email</li>"
+                    "<li>Telegram ID, имя и username</li>"
                     "<li>Случайный Telescan ID и активные сессии устройств</li>"
                     "<li>Временные ключевые хеши одноразовых кодов привязки</li>"
                     "<li>Фотография из Telegram или выбранная вами</li>"
@@ -230,7 +244,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Использование и передача",
-                    "<p>Данные аккаунта используются только для регистрации, "
+                    "<p>Данные аккаунта используются только для аутентификации, "
+                    "привязки обязательного контакта Telegram, "
                     "показа опубликованных профилей, управления BIO и фотографиями, "
                     "поиска людей рядом, обработки жалоб и блокировок, "
                     "предотвращения злоупотреблений и поддержки сервиса. Telescan не продаёт "
@@ -244,7 +259,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Безопасность и хранение",
                     "<p>API работает через защищённое соединение HTTPS. "
-                    "Одноразовые коды привязки передаются "
+                    "Identity-токены входа с Apple проверяются по публичным "
+                    "ключам Apple. Одноразовые коды привязки Telegram передаются "
                     "API по HTTPS и до использования или истечения "
                     "срока хранятся только как ключевые хеши. Сессии устройств "
                     "используют короткоживущие access-токены и ротируемые "
@@ -263,7 +279,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 ),
                 (
                     "Удаление аккаунта и данных",
-                    "<p>Откройте профиль в приложении, выберите <strong>Удалить "
+                    "<p>Откройте меню аккаунта на экране привязки Telegram или "
+                    "профиль в приложении, выберите <strong>Удалить "
                     "аккаунт</strong> и подтвердите действие. Telescan удалит "
                     "активную запись аккаунта, коды привязки, сессии устройств, блокировки, "
                     "сохранённые фотографии, "
@@ -319,7 +336,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Telescan helps nearby users discover and open public "
                     "Telegram profiles they choose to share. Bluetooth Low "
                     "Energy provides local discovery; an internet connection is "
-                    "required for registration, profile loading, BIO and photo "
+                    "required for Sign in with Apple, Telegram linking, profile "
+                    "loading, BIO and photo "
                     "management, and account deletion.</p>"
                     "<p>Telescan is experimental. BLE visibility and distance "
                     "estimates may be delayed, incomplete, or inaccurate and "
@@ -331,7 +349,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Your account and content",
                     "<p>You must be allowed to use Telegram and Telescan under "
                     "applicable law and platform rules. You are responsible for "
-                    "your linked devices, Telegram account, profile "
+                    "your Apple-authenticated Telescan account, linked devices, "
+                    "Telegram account, profile "
                     "information, BIO, and uploaded photos. Share only content you "
                     "have the right to use.</p>"
                     "<p>Your Telescan ID is advertised nearby only while "
@@ -418,7 +437,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<p>Telescan помогает пользователям рядом находить и "
                     "открывать публичные профили Telegram, которыми они решили "
                     "поделиться. Bluetooth Low Energy используется для поиска; "
-                    "интернет требуется для регистрации, загрузки профилей, "
+                    "интернет требуется для входа с Apple, привязки Telegram, "
+                    "загрузки профилей, "
                     "управления BIO и фотографиями и удаления аккаунта.</p>"
                     "<p>Telescan является экспериментальным сервисом. Видимость "
                     "BLE и оценка расстояния могут быть неточными, неполными или "
@@ -430,7 +450,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "Ваш аккаунт и контент",
                     "<p>Вы должны иметь право использовать Telegram и Telescan "
                     "по применимым законам и правилам платформ. Вы отвечаете за "
-                    "привязанные устройства, аккаунт Telegram, сведения профиля, BIO и "
+                    "аккаунт Telescan с входом через Apple, привязанные устройства, "
+                    "аккаунт Telegram, сведения профиля, BIO и "
                     "загруженные фотографии. Публикуйте только контент, на "
                     "использование которого у вас есть права.</p>"
                     "<p>Telescan ID передаётся устройствам рядом только при "

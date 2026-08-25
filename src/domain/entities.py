@@ -13,9 +13,21 @@ class AuthTokens:
 
 
 @dataclass(frozen=True, slots=True)
+class AccessToken:
+    access_token: str
+    expires_in: int
+
+
+@dataclass(frozen=True, slots=True)
 class AuthContext:
     user_id: str
     session_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class AppleIdentityClaims:
+    subject: str
+    email: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

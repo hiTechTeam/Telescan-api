@@ -11,10 +11,12 @@ from src.api.routers import router as api_router
 from src.core.config import Settings, settings as default_settings
 from src.dependencies.container import Container, build_container
 from src.domain.errors import (
+    AppleIdentityConflict,
     ConfirmationNotFound,
     ExternalServiceUnavailable,
     ForbiddenConfirmation,
     InvalidLinkCode,
+    InvalidAppleCredential,
     InvalidModerationAction,
     InvalidPhoto,
     InvalidToken,
@@ -23,6 +25,7 @@ from src.domain.errors import (
     RefreshTokenReused,
     SessionRevoked,
     TelegramUsernameRequired,
+    TelegramIdentityConflict,
     UserNotFound,
 )
 from src.infrastructure.mongodb import close_database, init_database
@@ -72,6 +75,29 @@ def create_app(
         return ORJSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Invalid or expired link code"},
+        )
+
+    @application.exception_handler(InvalidAppleCredential)
+    async def invalid_apple_credential(
+        _: Request, __: InvalidAppleCredential
+    ) -> ORJSONResponse:
+        return ORJSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                "detail": "Invalid Sign in with Apple credential",
+                "code": "invalid_apple_credential",
+            },
+        )
+
+    @application.exception_handler(AppleIdentityConflict)
+    @application.exception_handler(TelegramIdentityConflict)
+    async def identity_conflict(_: Request, __: Exception) -> ORJSONResponse:
+        return ORJSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "detail": "This identity is linked to another account",
+                "code": "identity_conflict",
+            },
         )
 
     @application.exception_handler(TelegramUsernameRequired)
@@ -140,7 +166,7 @@ def create_app(
     async def unavailable(_: Request, __: ExternalServiceUnavailable) -> ORJSONResponse:
         return ORJSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"detail": "Telegram confirmation service is unavailable"},
+            content={"detail": "External identity service is unavailable"},
         )
 
     return application

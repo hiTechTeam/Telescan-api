@@ -1,3 +1,4 @@
+from .apple_identities import AppleIdentityRepository
 from .blocks import BlockRepository
 from .confirmations import ConfirmationRepository
 from .link_codes import LinkCodeRepository
@@ -7,6 +8,7 @@ from .sessions import SessionRepository
 from .users import UserRepository
 
 __all__ = [
+    "AppleIdentityRepository",
     "BlockRepository",
     "ConfirmationRepository",
     "LinkCodeRepository",
