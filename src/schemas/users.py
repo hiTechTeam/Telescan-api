@@ -15,7 +15,7 @@ class ProfileResponse(BaseModel):
 
 
 class ProfileUpdateRequest(BaseModel):
-    bio: Annotated[str | None, Field(max_length=60)]
+    bio: Annotated[str | None, Field(max_length=36)] = None
 
 
 class LinkedAccountResponse(BaseModel):

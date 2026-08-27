@@ -115,7 +115,7 @@ def test_own_profile_contract_cannot_target_another_user() -> None:
     ]
     update_component = update_schema["$ref"].rsplit("/", maxsplit=1)[1]
     bio_schema = schema["components"]["schemas"][update_component]["properties"]["bio"]
-    assert bio_schema["anyOf"][0]["maxLength"] == 60
+    assert bio_schema["anyOf"][0]["maxLength"] == 36
     assert schema["paths"]["/api/v1/profiles/{telescan_id}"]["get"]["security"] == [
         {"HTTPBearer": []}
     ]

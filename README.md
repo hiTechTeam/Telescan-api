@@ -134,7 +134,7 @@ Authenticated iOS API:
 | `GET` | `/api/v1/auth/logout-all/requests/{confirmation_id}` | Poll the authenticated Telegram confirmation status |
 | `GET` | `/api/v1/users/me` | Read the current account |
 | `POST` | `/api/v1/users/me/telegram/link` | Attach Telegram with a one-time bot code |
-| `PATCH` | `/api/v1/users/me` | Set or clear the optional BIO (60 characters maximum) |
+| `PATCH` | `/api/v1/users/me` | Set or clear the optional BIO (36 characters maximum) |
 | `PUT` | `/api/v1/users/me/photo` | Replace the current account photo |
 | `DELETE` | `/api/v1/users/me/photo` | Remove the current account photo |
 | `DELETE` | `/api/v1/users/me` | Delete the account and owned data |
