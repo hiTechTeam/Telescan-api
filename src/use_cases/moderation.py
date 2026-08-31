@@ -28,7 +28,6 @@ class SubmitReport:
         reporter_id: str,
         target_telescan_id: UUID,
         client_request_id: UUID,
-        reason: ReportReason,
         details: str | None,
     ) -> object:
         reporter = await self._users.get_by_id(reporter_id)
@@ -43,7 +42,7 @@ class SubmitReport:
             reporter,
             target,
             client_request_id,
-            reason,
+            ReportReason.OTHER,
             normalized_details or None,
             datetime.now(UTC),
         )

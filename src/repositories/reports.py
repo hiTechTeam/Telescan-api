@@ -25,21 +25,23 @@ class ReportRepository:
         collection = ReportDocument.get_pymongo_collection()
         query = {
             "reporter_id": reporter_id,
-            "target_id": target_id,
-            "reason": reason,
-            "status": ReportStatus.PENDING,
+            "client_request_id": client_request_id,
         }
         update = {
             "$setOnInsert": {
                 "public_id": uuid4(),
                 "client_request_id": client_request_id,
+                "reporter_id": reporter_id,
                 "reporter_telescan_id": getattr(reporter, "telescan_id"),
+                "target_id": target_id,
                 "target_telescan_id": getattr(target, "telescan_id"),
+                "reason": reason,
                 "details": details,
                 "target_name": getattr(target, "tg_name", None),
                 "target_username": getattr(target, "tg_username", None),
                 "target_bio": getattr(target, "bio", None),
                 "target_photo_url": getattr(target, "photo_s3_link", None),
+                "status": ReportStatus.PENDING,
                 "created_at": now,
                 "updated_at": now,
                 "resolved_at": None,
@@ -56,14 +58,7 @@ class ReportRepository:
                 return_document=ReturnDocument.AFTER,
             )
         except DuplicateKeyError:
-            raw = await collection.find_one(
-                {
-                    "reporter_id": reporter_id,
-                    "client_request_id": client_request_id,
-                }
-            )
-            if raw is None:
-                raw = await collection.find_one(query)
+            raw = await collection.find_one(query)
             if raw is None:
                 raise
         return ReportDocument.model_validate(raw)

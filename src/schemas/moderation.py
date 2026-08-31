@@ -10,7 +10,6 @@ from src.domain.enums import ReportReason, ReportStatus
 class ReportCreateRequest(BaseModel):
     client_request_id: Annotated[UUID, Field(alias="clientRequestId")]
     target_telescan_id: Annotated[UUID, Field(alias="targetTelescanId")]
-    reason: ReportReason
     details: Annotated[str | None, Field(max_length=500)] = None
     model_config = ConfigDict(populate_by_name=True)
 

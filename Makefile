@@ -9,5 +9,5 @@ test:
 
 migration-dry-run:
 	uv run python -m scripts.migrate_users
-
+	uv run python -m scripts.migrate_universal_reports
 

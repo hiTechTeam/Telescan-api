@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from scripts.migrate_apple_auth import migration_report
+from scripts.migrate_universal_reports import migrate_reports
 from scripts.migrate_users import migrate_users
 from src.app import create_app
 from src.core.config import Settings
@@ -10,6 +11,7 @@ from src.infrastructure.mongodb.documents import (
     ReviewCodeDocument,
     UserDocument,
 )
+from src.schemas.moderation import ReportCreateRequest
 from src.schemas.users import ProfileResponse
 
 
@@ -96,6 +98,19 @@ def test_public_profile_never_exposes_telegram_id() -> None:
     assert "bio" in properties
 
 
+def test_universal_report_accepts_legacy_reason_during_client_rollout() -> None:
+    payload = ReportCreateRequest.model_validate(
+        {
+            "clientRequestId": "223a0051-a330-49bb-b490-f4ad3a28676e",
+            "targetTelescanId": "1262293d-e8c2-4742-b87f-e4392078db14",
+            "reason": "other",
+            "details": "context",
+        }
+    )
+
+    assert payload.details == "context"
+
+
 def test_own_profile_contract_cannot_target_another_user() -> None:
     schema = create_app(settings=Settings(), container=object()).openapi()
     photo_operation = schema["paths"]["/api/v1/users/me/photo"]["put"]
@@ -126,6 +141,18 @@ def test_own_profile_contract_cannot_target_another_user() -> None:
     assert schema["paths"]["/api/v1/reports"]["post"]["security"] == [
         {"HTTPBearer": []}
     ]
+    report_schema_ref = schema["paths"]["/api/v1/reports"]["post"]["requestBody"][
+        "content"
+    ]["application/json"]["schema"]["$ref"]
+    report_component = report_schema_ref.rsplit("/", maxsplit=1)[1]
+    report_properties = schema["components"]["schemas"][report_component][
+        "properties"
+    ]
+    assert set(report_properties) == {
+        "clientRequestId",
+        "targetTelescanId",
+        "details",
+    }
     assert schema["paths"]["/api/v1/users/me/blocks"]["get"]["security"] == [
         {"HTTPBearer": []}
     ]
@@ -157,9 +184,8 @@ def test_moderation_documents_have_deduplication_and_lookup_indexes() -> None:
         index.get("unique") and index.get("name") == "uniq_reporter_request"
         for index in report_indexes
     )
-    assert any(
-        index.get("unique") and index.get("name") == "uniq_pending_report"
-        for index in report_indexes
+    assert not any(
+        index.get("name") == "uniq_pending_report" for index in report_indexes
     )
     assert any(
         index.get("unique") and index.get("name") == "uniq_blocker_blocked"
@@ -194,6 +220,23 @@ def test_migration_is_dry_run_and_idempotent() -> None:
 
     repeated = migrate_users(collection, apply=True)
     assert repeated["would_change"] == 0
+
+
+def test_universal_report_migration_removes_legacy_pending_index() -> None:
+    reports = FakeMigrationCollection(
+        indexes={"uniq_pending_report": {"unique": True}}
+    )
+
+    dry_run = migrate_reports(reports, apply=False)
+    assert dry_run == {"legacy_pending_index_present": True, "indexes_dropped": 0}
+    assert "uniq_pending_report" in reports.indexes
+
+    applied = migrate_reports(reports, apply=True)
+    assert applied == {"legacy_pending_index_present": True, "indexes_dropped": 1}
+    assert "uniq_pending_report" not in reports.indexes
+
+    repeated = migrate_reports(reports, apply=True)
+    assert repeated == {"legacy_pending_index_present": False, "indexes_dropped": 0}
 
 
 def test_apple_auth_migration_revokes_only_legacy_sessions() -> None:

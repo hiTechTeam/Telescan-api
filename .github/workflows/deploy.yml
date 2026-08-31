@@ -110,6 +110,8 @@ jobs:
           docker compose build telescan-api </dev/null
           docker compose run --rm --no-deps -T telescan-api \
             /app/.venv/bin/python -m scripts.migrate_apple_auth </dev/null
+          docker compose run --rm --no-deps -T telescan-api \
+            /app/.venv/bin/python -m scripts.migrate_universal_reports </dev/null
 
           docker compose stop --timeout 30 telescan-api </dev/null
           migration_complete=false
@@ -123,6 +125,9 @@ jobs:
           docker compose run --rm --no-deps -T telescan-api \
             /app/.venv/bin/python -m scripts.migrate_apple_auth \
             --apply --confirm MIGRATE_APPLE_AUTH </dev/null
+          docker compose run --rm --no-deps -T telescan-api \
+            /app/.venv/bin/python -m scripts.migrate_universal_reports \
+            --apply --confirm MIGRATE_UNIVERSAL_REPORTS </dev/null
           migration_complete=true
 
           docker compose up -d --no-deps telescan-api </dev/null

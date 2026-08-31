@@ -210,21 +210,6 @@ class ReportDocument(Document):
                 partialFilterExpression={"reporter_id": {"$type": "objectId"}},
             ),
             IndexModel(
-                [
-                    ("reporter_id", ASCENDING),
-                    ("target_id", ASCENDING),
-                    ("reason", ASCENDING),
-                    ("status", ASCENDING),
-                ],
-                unique=True,
-                name="uniq_pending_report",
-                partialFilterExpression={
-                    "reporter_id": {"$type": "objectId"},
-                    "target_id": {"$type": "objectId"},
-                    "status": ReportStatus.PENDING,
-                },
-            ),
-            IndexModel(
                 [("status", ASCENDING), ("created_at", DESCENDING)],
                 name="status_created",
             ),

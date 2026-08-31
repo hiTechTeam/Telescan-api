@@ -139,7 +139,7 @@ Authenticated iOS API:
 | `DELETE` | `/api/v1/users/me/photo` | Remove the current account photo |
 | `DELETE` | `/api/v1/users/me` | Delete the account and owned data |
 | `GET` | `/api/v1/profiles/{telescan_id}` | Read a nearby public profile |
-| `POST` | `/api/v1/reports` | Submit an idempotent profile report |
+| `POST` | `/api/v1/reports` | Submit an idempotent universal profile report |
 | `GET` | `/api/v1/users/me/blocks` | List blocked profiles |
 | `PUT` | `/api/v1/users/me/blocks/{telescan_id}` | Block a profile |
 | `DELETE` | `/api/v1/users/me/blocks/{telescan_id}` | Unblock a profile |
@@ -187,7 +187,7 @@ rendering live in `src/api/presentation`, while the HTML shell is kept in
 MongoDB contains nine application collections: `users`, `apple_identities`, `link_codes`,
 `review_codes`, `device_sessions`, `rate_limits`, `confirmation_requests`,
 `reports`, and `blocks`. Reports capture the reporter and target Telescan IDs,
-reason, optional context, target name, username, BIO and photo snapshot,
+the universal report kind, optional context, target name, username, BIO and photo snapshot,
 moderation status, actor, and
 timestamps.
 Blocks are unique per blocker/target pair and profile reads return `404` when
@@ -257,6 +257,19 @@ uv run python -m scripts.migrate_users \
   --apply \
   --remove-legacy-codes \
   --confirm REMOVE_LEGACY_CODES
+```
+
+Universal reports use `clientRequestId` as their idempotency key. Deployments
+also remove the obsolete pending-report index that grouped submissions by
+reporter, target, and reason; without this migration, a later universal report
+could reuse an already-notified moderation item. The command is safe to repeat
+and does not modify report documents:
+
+```sh
+uv run python -m scripts.migrate_universal_reports
+uv run python -m scripts.migrate_universal_reports \
+  --apply \
+  --confirm MIGRATE_UNIVERSAL_REPORTS
 ```
 
 While the time-limited legacy API is active, newly issued codes are additionally

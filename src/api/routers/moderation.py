@@ -42,7 +42,6 @@ async def submit_report(
         auth.user_id,
         payload.target_telescan_id,
         payload.client_request_id,
-        payload.reason,
         payload.details,
     )
     return ReportResponse(

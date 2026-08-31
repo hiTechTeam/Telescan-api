@@ -334,9 +334,7 @@ class FakeReports:
                 item
                 for item in self.items.values()
                 if item.reporter_id == str(reporter.id)
-                and item.target_id == str(target.id)
-                and item.reason == reason
-                and item.status == ReportStatus.PENDING
+                and item.client_request_id == client_request_id
             ),
             None,
         )

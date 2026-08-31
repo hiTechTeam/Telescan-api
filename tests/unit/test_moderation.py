@@ -23,7 +23,7 @@ from tests.fakes import FakeBlocks, FakeReports, FakeUsers
 
 
 @pytest.mark.asyncio
-async def test_report_captures_snapshot_and_deduplicates_pending_reason() -> None:
+async def test_report_captures_snapshot_and_deduplicates_only_same_request() -> None:
     users = FakeUsers()
     reporter = await users.upsert_telegram_profile(1, "Reporter", "reporter")
     target = await users.upsert_telegram_profile(2, "Target", "target")
@@ -32,22 +32,27 @@ async def test_report_captures_snapshot_and_deduplicates_pending_reason() -> Non
     reports = FakeReports()
     submit = SubmitReport(users, reports)
 
+    request_id = uuid4()
     first = await submit.execute(
         str(reporter.id),
         target.telescan_id,
-        uuid4(),
-        ReportReason.HARASSMENT,
+        request_id,
         "  repeated unwanted contact  ",
     )
-    repeated = await submit.execute(
+    retried = await submit.execute(
         str(reporter.id),
         target.telescan_id,
-        uuid4(),
-        ReportReason.HARASSMENT,
+        request_id,
         None,
     )
+    repeated = await submit.execute(
+        str(reporter.id), target.telescan_id, uuid4(), "new context"
+    )
 
-    assert repeated.public_id == first.public_id
+    assert retried.public_id == first.public_id
+    assert repeated.public_id != first.public_id
+    assert repeated.details == "new context"
+    assert first.reason == ReportReason.OTHER
     assert first.details == "repeated unwanted contact"
     assert first.reporter_telescan_id == reporter.telescan_id
     assert first.target_telescan_id == target.telescan_id
@@ -68,7 +73,6 @@ async def test_self_report_and_self_block_are_rejected() -> None:
             str(user.id),
             user.telescan_id,
             uuid4(),
-            ReportReason.SPAM,
             None,
         )
     with pytest.raises(InvalidModerationAction):
@@ -107,7 +111,6 @@ async def test_internal_report_review_flow_records_actor_and_note() -> None:
         str(reporter.id),
         target.telescan_id,
         uuid4(),
-        ReportReason.SPAM,
         None,
     )
 
