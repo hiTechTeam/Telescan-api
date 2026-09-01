@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: telescan-api-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: production-telescan-api
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -45,15 +45,34 @@ jobs:
       - name: Test
         run: uv run pytest
 
+      - name: Deployment failure-injection fixtures
+        run: |
+          bash -n ops/deploy-production.sh
+          bash ops/test-deploy-production.sh
+
       - name: Build
         run: docker build --tag telescan-api:ci .
 
+      - name: Checkout canonical legal source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hiTechTeam/Telescan-info
+          ref: main
+          path: .canonical-legal
+          persist-credentials: false
+
+      - name: Verify legal source equality
+        run: >-
+          uv run python -m scripts.sync_legal_source
+          --source .canonical-legal/legal/legal_documents.json
+          --check
+
   deploy:
     name: Deploy to production
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     environment: production
     steps:
       - name: Checkout
@@ -69,91 +88,29 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
 
-      - name: Back up production database
+      - name: Upload immutable release
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" <<'REMOTE'
-          set -Eeuo pipefail
-          test -f /etc/systemd/system/telescan-mongodb-backup.service
-          sudo systemctl start telescan-mongodb-backup.service
-          test "$(systemctl show telescan-mongodb-backup.service --property=Result --value)" = "success"
-          test "$(systemctl show telescan-mongodb-backup.service --property=ExecMainStatus --value)" = "0"
-          REMOTE
-
-      - name: Upload release
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-        run: |
-          TARGET_DIR=/home/ubuntu/telescan/Telescan-api
-
+          RELEASE_DIR=/home/ubuntu/telescan/.releases/Telescan-api/${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
-            "$SERVER_USER@$SERVER_HOST" "mkdir -p '$TARGET_DIR'"
+            "$SERVER_USER@$SERVER_HOST" \
+            "test ! -e '$RELEASE_DIR' && install -d -m 0750 '$RELEASE_DIR'"
           rsync -az --delete \
             --exclude '.env' \
             --exclude '.git' \
             -e 'ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes' \
-            ./ "$SERVER_USER@$SERVER_HOST:$TARGET_DIR/"
+            ./ "$SERVER_USER@$SERVER_HOST:$RELEASE_DIR/"
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+            "$SERVER_USER@$SERVER_HOST" \
+            "chmod -R a-w '$RELEASE_DIR' && sync -f '$RELEASE_DIR' && sync -f '/home/ubuntu/telescan/.releases/Telescan-api'"
 
-      - name: Deploy API
+      - name: Run durable production transaction
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" <<'REMOTE'
-          set -Eeuo pipefail
-          cd /home/ubuntu/telescan/Telescan-api
-          test -s .env
-          docker compose config --quiet </dev/null
-
-          PREVIOUS_CONTAINER_ID="$(docker compose ps -q telescan-api </dev/null)"
-          test -n "$PREVIOUS_CONTAINER_ID"
-          PREVIOUS_IMAGE_ID="$(docker inspect --format '{{.Image}}' "$PREVIOUS_CONTAINER_ID")"
-          PREVIOUS_IMAGE_REF="$(docker inspect --format '{{.Config.Image}}' "$PREVIOUS_CONTAINER_ID")"
-
-          docker compose build telescan-api </dev/null
-          docker compose run --rm --no-deps -T telescan-api \
-            /app/.venv/bin/python -m scripts.migrate_apple_auth </dev/null
-          docker compose run --rm --no-deps -T telescan-api \
-            /app/.venv/bin/python -m scripts.migrate_universal_reports </dev/null
-
-          rollback_previous_release() {
-            exit_status=$?
-            if [ "$exit_status" -eq 0 ]; then
-              return
-            fi
-            trap - EXIT
-            set +e
-            docker compose stop --timeout 30 telescan-api </dev/null
-            docker tag "$PREVIOUS_IMAGE_ID" "$PREVIOUS_IMAGE_REF"
-            docker compose up -d --no-deps --force-recreate telescan-api </dev/null
-            docker compose ps telescan-api </dev/null
-            exit "$exit_status"
-          }
-          trap rollback_previous_release EXIT
-
-          docker compose stop --timeout 30 telescan-api </dev/null
-
-          docker compose run --rm --no-deps -T telescan-api \
-            /app/.venv/bin/python -m scripts.migrate_apple_auth \
-            --apply --confirm MIGRATE_APPLE_AUTH </dev/null
-          docker compose run --rm --no-deps -T telescan-api \
-            /app/.venv/bin/python -m scripts.migrate_universal_reports \
-            --apply --confirm MIGRATE_UNIVERSAL_REPORTS </dev/null
-
-          docker compose up -d --no-deps telescan-api </dev/null
-          CONTAINER_ID="$(docker compose ps -q telescan-api </dev/null)"
-          test -n "$CONTAINER_ID"
-          for attempt in {1..20}; do
-            HEALTH_STATUS="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_ID")"
-            if [ "$HEALTH_STATUS" = "healthy" ]; then
-              break
-            fi
-            sleep 5
-          done
-          docker compose ps telescan-api </dev/null
-          test "$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_ID")" = "healthy"
-          trap - EXIT
-          REMOTE
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+            "$SERVER_USER@$SERVER_HOST" \
+            "/usr/bin/bash /home/ubuntu/telescan/.releases/Telescan-api/${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}/ops/deploy-production.sh --apply --confirm DEPLOY_TELESCAN_API_WITH_ROLLBACK --deploy-id ${{ github.run_id }}-${{ github.run_attempt }} --release-dir /home/ubuntu/telescan/.releases/Telescan-api/${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}"

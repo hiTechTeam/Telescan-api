@@ -9,6 +9,7 @@ import uvicorn
 APP = "src.app:app"
 HOST = "0.0.0.0"
 PORT = 8000
+WORKERS = 1
 
 # --
 
@@ -18,4 +19,5 @@ if __name__ == "__main__":
         host=HOST,
         port=PORT,
         reload=False,
+        workers=WORKERS,
     )

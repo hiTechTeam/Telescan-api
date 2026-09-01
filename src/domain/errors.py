@@ -70,3 +70,11 @@ class InvalidModerationAction(TelescanError):
 
 class ModerationItemNotFound(TelescanError):
     pass
+
+
+class ModerationConflict(TelescanError):
+    """The report changed after the moderator last read it."""
+
+
+class AccountOperationConflict(TelescanError):
+    """Another durable account operation is already in progress."""

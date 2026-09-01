@@ -1,16 +1,29 @@
 from uuid import UUID, uuid4
 
 from beanie import Document, PydanticObjectId
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from src.domain.enums import (
+    AccountDeletionStatus,
+    AccountMergeStatus,
     ConfirmationAction,
     ConfirmationStatus,
     LinkCodeStatus,
     ReportReason,
+    ReportPhotoEvidenceStatus,
     ReportStatus,
 )
+
+
+class ModerationEvent(BaseModel):
+    revision: int
+    from_status: ReportStatus
+    to_status: ReportStatus
+    moderator_id: str
+    note: str | None = None
+    note_changed: bool = False
+    created_at: AwareDatetime
 
 
 class UserDocument(Document):
@@ -71,6 +84,12 @@ class LinkCodeDocument(Document):
             IndexModel(
                 [("user_id", ASCENDING), ("status", ASCENDING)],
                 name="user_status",
+            ),
+            IndexModel(
+                [("user_id", ASCENDING)],
+                unique=True,
+                name="uniq_issued_user",
+                partialFilterExpression={"status": LinkCodeStatus.ISSUED},
             ),
             IndexModel(
                 [("expires_at", ASCENDING)], expireAfterSeconds=0, name="ttl_expires_at"
@@ -191,6 +210,11 @@ class ReportDocument(Document):
     target_username: str | None = None
     target_bio: str | None = None
     target_photo_url: str | None = None
+    target_photo_source_url: str | None = None
+    target_photo_evidence_status: ReportPhotoEvidenceStatus = (
+        ReportPhotoEvidenceStatus.ABSENT
+    )
+    target_photo_evidence_attempts: int = 0
     status: ReportStatus = ReportStatus.PENDING
     created_at: AwareDatetime
     updated_at: AwareDatetime
@@ -198,6 +222,8 @@ class ReportDocument(Document):
     retention_until: AwareDatetime | None = None
     moderator_id: str | None = None
     moderator_note: str | None = None
+    revision: int = 0
+    moderation_history: list[ModerationEvent] = Field(default_factory=list)
 
     class Settings:
         name = "reports"
@@ -218,9 +244,15 @@ class ReportDocument(Document):
                 name="target_created",
             ),
             IndexModel(
-                [("retention_until", ASCENDING)],
-                expireAfterSeconds=0,
-                name="ttl_retention_until",
+                [("status", ASCENDING), ("retention_until", ASCENDING)],
+                name="status_retention",
+            ),
+            IndexModel(
+                [
+                    ("target_photo_evidence_status", ASCENDING),
+                    ("created_at", ASCENDING),
+                ],
+                name="photo_evidence_retry",
             ),
         ]
 
@@ -250,6 +282,122 @@ class BlockDocument(Document):
         ]
 
 
+class AccountMergeDocument(Document):
+    source_user_id: PydanticObjectId
+    target_user_id: PydanticObjectId
+    apple_subject: str
+    source_telescan_id: UUID
+    source_photo_url: str | None = None
+    source_session_ids: list[PydanticObjectId] = Field(default_factory=list)
+    authorization_code_hash: str | None = None
+    authorization_code_kind: str | None = None
+    authorization_device_id: UUID | None = None
+    authorized_at: AwareDatetime | None = None
+    status: AccountMergeStatus = AccountMergeStatus.PREPARED
+    cleanup_attempts: int = 0
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    completed_at: AwareDatetime | None = None
+    # Keep incomplete merges durable indefinitely; only completed journal
+    # entries receive a retention timestamp.
+    retention_until: AwareDatetime | None = None
+
+    class Settings:
+        name = "account_merges"
+        indexes = [
+            IndexModel(
+                [("source_user_id", ASCENDING)],
+                unique=True,
+                name="uniq_source_user",
+            ),
+            IndexModel(
+                [("target_user_id", ASCENDING)],
+                unique=True,
+                name="uniq_target_user_active",
+                partialFilterExpression={
+                    "status": {
+                        "$in": [
+                            AccountMergeStatus.PREPARED,
+                            AccountMergeStatus.MIGRATING,
+                            AccountMergeStatus.MONGO_COMPLETE,
+                            AccountMergeStatus.COMPLETED,
+                        ]
+                    }
+                },
+            ),
+            IndexModel(
+                [("status", ASCENDING), ("updated_at", ASCENDING)],
+                name="status_updated",
+            ),
+            IndexModel(
+                [
+                    ("authorization_code_kind", ASCENDING),
+                    ("authorization_code_hash", ASCENDING),
+                ],
+                name="authorization_code",
+            ),
+            IndexModel(
+                [("retention_until", ASCENDING)],
+                expireAfterSeconds=0,
+                name="ttl_retention_until",
+            ),
+        ]
+
+
+class AccountDeletionDocument(Document):
+    user_id: PydanticObjectId
+    telescan_id: UUID
+    photo_url: str | None = None
+    status: AccountDeletionStatus = AccountDeletionStatus.PREPARED
+    cleanup_attempts: int = 0
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    completed_at: AwareDatetime | None = None
+    # Keep incomplete deletions durable indefinitely; only completed journal
+    # entries receive a retention timestamp.
+    retention_until: AwareDatetime | None = None
+
+    class Settings:
+        name = "account_deletions"
+        indexes = [
+            IndexModel(
+                [("user_id", ASCENDING)],
+                unique=True,
+                name="uniq_user",
+            ),
+            IndexModel(
+                [("status", ASCENDING), ("updated_at", ASCENDING)],
+                name="status_updated",
+            ),
+            IndexModel(
+                [("retention_until", ASCENDING)],
+                expireAfterSeconds=0,
+                name="ttl_retention_until",
+            ),
+        ]
+
+
+class AccountOperationFenceDocument(Document):
+    user_id: PydanticObjectId
+    fenced: bool = False
+    operation_kind: str | None = None
+    operation_id: PydanticObjectId | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    retention_until: AwareDatetime | None = None
+
+    class Settings:
+        name = "account_operation_fences"
+        indexes = [
+            IndexModel([("user_id", ASCENDING)], unique=True, name="uniq_user"),
+            IndexModel(
+                [("retention_until", ASCENDING)],
+                expireAfterSeconds=0,
+                name="ttl_retention_until",
+            ),
+        ]
+
+
 DOCUMENT_MODELS = [
     UserDocument,
     AppleIdentityDocument,
@@ -260,4 +408,7 @@ DOCUMENT_MODELS = [
     ConfirmationRequestDocument,
     ReportDocument,
     BlockDocument,
+    AccountMergeDocument,
+    AccountDeletionDocument,
+    AccountOperationFenceDocument,
 ]

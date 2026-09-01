@@ -47,20 +47,45 @@ class S3PhotoStorage:
             )
         return f"{self._public_base_url}/{object_name}"
 
+    async def copy_by_url(self, source_url: str, object_name: str) -> str:
+        source_name = self._object_name(source_url)
+        if not source_name:
+            raise ValueError("photo URL does not belong to configured storage")
+        async with self._client() as client:
+            await client.copy_object(
+                Bucket=self._bucket_name,
+                Key=object_name,
+                CopySource={"Bucket": self._bucket_name, "Key": source_name},
+                ACL="public-read",
+                MetadataDirective="COPY",
+            )
+        return f"{self._public_base_url}/{object_name}"
+
     async def delete_by_url(self, public_url: str) -> None:
-        prefix = f"{self._public_base_url}/"
-        if not public_url.startswith(prefix):
-            return
-        object_name = unquote(urlparse(public_url).path.lstrip("/"))
-        base_path = urlparse(self._public_base_url).path.lstrip("/")
-        if base_path and object_name.startswith(f"{base_path}/"):
-            object_name = object_name[len(base_path) + 1 :]
+        object_name = self._object_name(public_url)
         if object_name:
             async with self._client() as client:
                 await client.delete_object(Bucket=self._bucket_name, Key=object_name)
 
+    def _object_name(self, public_url: str) -> str | None:
+        prefix = f"{self._public_base_url}/"
+        if not public_url.startswith(prefix):
+            return None
+        object_name = unquote(urlparse(public_url).path.lstrip("/"))
+        base_path = urlparse(self._public_base_url).path.lstrip("/")
+        if base_path and object_name.startswith(f"{base_path}/"):
+            object_name = object_name[len(base_path) + 1 :]
+        return object_name or None
+
     async def delete_user_prefix(self, telescan_id: UUID) -> None:
         prefix = f"users/{telescan_id}/"
+        await self._delete_prefix(prefix)
+
+    async def delete_report_prefix(self, report_id: UUID) -> None:
+        prefix = f"moderation/reports/{report_id}/"
+        await self._delete_prefix(prefix)
+
+    async def _delete_prefix(self, prefix: str) -> None:
         continuation_token: str | None = None
         async with self._client() as client:
             while True:
@@ -73,12 +98,24 @@ class S3PhotoStorage:
                 page = await client.list_objects_v2(**request)
                 objects = [{"Key": item["Key"]} for item in page.get("Contents", [])]
                 if objects:
-                    await client.delete_objects(
+                    result = await client.delete_objects(
                         Bucket=self._bucket_name,
                         Delete={"Objects": objects, "Quiet": True},
                     )
+                    errors = result.get("Errors", [])
+                    if errors:
+                        raise RuntimeError(
+                            "S3 prefix deletion returned per-object failures"
+                        )
                 if not page.get("IsTruncated"):
                     break
                 continuation_token = page.get("NextContinuationToken")
                 if not continuation_token:
                     break
+            verification = await client.list_objects_v2(
+                Bucket=self._bucket_name,
+                Prefix=prefix,
+                MaxKeys=1,
+            )
+            if verification.get("Contents") or verification.get("IsTruncated"):
+                raise RuntimeError("S3 prefix is not empty after deletion")

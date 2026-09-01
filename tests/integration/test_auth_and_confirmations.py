@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
@@ -9,12 +10,18 @@ from fastapi.security import HTTPAuthorizationCredentials
 from src.api.routers.auth import logout_current_session
 from src.dependencies.auth import get_current_auth
 from src.domain.entities import AuthContext
-from src.domain.enums import ConfirmationStatus, LinkCodeStatus, TelegramPhotoState
+from src.domain.enums import (
+    ConfirmationStatus,
+    LinkCodeStatus,
+    ReportReason,
+    TelegramPhotoState,
+)
 from src.domain.errors import (
     ConfirmationNotFound,
     InvalidToken,
     InvalidLinkCode,
     SessionRevoked,
+    TelegramIdentityConflict,
     TelegramUsernameRequired,
 )
 from src.infrastructure.jwt import TokenService
@@ -30,6 +37,8 @@ from src.use_cases.confirmations import (
 from src.use_cases.issue_link_code import IssueLinkCode
 from src.use_cases.profiles import DeleteAccount, UpdateOwnBio, UpdateOwnPhoto
 from tests.fakes import (
+    FakeAccountDeletionService,
+    FakeAccountMergeService,
     FakeAppleIdentities,
     FakeAppleVerifier,
     FakeBlocks,
@@ -43,11 +52,23 @@ from tests.fakes import (
 )
 
 
+class NoopAccountOperationGuard:
+    async def is_fenced(self, _user_id):
+        return False
+
+    @asynccontextmanager
+    async def admit(self, _user_id):
+        yield
+
+
 def build_auth_flow():
     users = FakeUsers()
     identities = FakeAppleIdentities()
     codes = FakeLinkCodes()
     sessions = FakeSessions()
+    confirmations = FakeConfirmations()
+    reports = FakeReports()
+    blocks = FakeBlocks()
     code_service = LinkCodeService("hmac-secret", 8)
     tokens = TokenService("jwt-secret-that-is-at-least-32-bytes", "issuer", 900)
     session_service = SessionService(sessions, tokens)
@@ -62,6 +83,15 @@ def build_auth_flow():
         session_service,
         30 * 86400,
     )
+    merges = FakeAccountMergeService(
+        users,
+        identities,
+        codes,
+        sessions,
+        blocks,
+        reports,
+        confirmations,
+    )
     link = LinkTelegramAccount(
         users,
         identities,
@@ -69,6 +99,7 @@ def build_auth_flow():
         sessions,
         session_service,
         code_service,
+        account_merges=merges,
     )
     link_device = LinkDevice(
         users,
@@ -83,6 +114,10 @@ def build_auth_flow():
         identities=identities,
         codes=codes,
         sessions=sessions,
+        confirmations=confirmations,
+        reports=reports,
+        blocks=blocks,
+        merges=merges,
         tokens=tokens,
         issue=issue,
         apple=apple,
@@ -135,6 +170,25 @@ async def test_issue_revokes_previous_and_code_expires() -> None:
         await flow.link.execute(
             second.code, user_id, session_id, now + timedelta(minutes=6)
         )
+
+
+@pytest.mark.asyncio
+async def test_concurrent_link_code_issuance_leaves_exactly_one_active() -> None:
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+
+    issued = await asyncio.gather(
+        flow.issue.execute(10, "Ada", "ada", None, now),
+        flow.issue.execute(10, "Ada", "ada", None, now),
+    )
+
+    active = [
+        item
+        for item in flow.codes.items.values()
+        if item.status == LinkCodeStatus.ISSUED
+    ]
+    assert len(issued) == 2
+    assert len(active) == 1
 
 
 @pytest.mark.asyncio
@@ -345,8 +399,10 @@ async def test_link_is_one_time_and_preserves_existing_telegram_profile() -> Non
     )
 
     successful = [result for result in results if not isinstance(result, Exception)]
-    assert len(successful) == 1
-    assert sum(isinstance(result, Exception) for result in results) == 1
+    # The same device may safely retry a consumed code after the durable merge
+    # journal exists.  Both concurrent calls may therefore converge on the
+    # same canonical account, or one may lose the in-memory fake's race.
+    assert successful
     _, linked_user = successful[0]
     assert linked_user.id == telegram_user.id
     assert linked_user.telescan_id == old_telescan_id
@@ -354,6 +410,160 @@ async def test_link_is_one_time_and_preserves_existing_telegram_profile() -> Non
     assert await flow.users.get_by_id(str(temporary_user.id)) is None
     identity = await flow.identities.get_by_user_id(str(telegram_user.id))
     assert identity is not None
+
+
+@pytest.mark.asyncio
+async def test_consumed_link_proof_cannot_resume_after_30_days() -> None:
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+    device_id = uuid4()
+    _, _, user_id, session_id = await sign_in(flow, device_id, now)
+    await flow.users.upsert_telegram_profile(10, "Ada", "ada")
+    issued = await flow.issue.execute(10, "Ada", "ada", None, now)
+    code_hash = LinkCodeService("hmac-secret", 8).hash(issued.code)
+    consumed = await flow.codes.consume(code_hash, device_id, now)
+    assert consumed is not None
+    flow.sessions.items[session_id].expires_at = now + timedelta(days=31)
+
+    with pytest.raises(InvalidLinkCode):
+        await flow.link.execute(
+            issued.code,
+            user_id,
+            session_id,
+            now + timedelta(days=30, seconds=1),
+        )
+
+
+@pytest.mark.asyncio
+async def test_merge_moves_all_relations_and_preserves_canonical_profile() -> None:
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+    first_device = uuid4()
+    _, source, source_id, session_id = await sign_in(flow, first_device, now)
+    second_source_session = await flow.sessions.create_or_replace(
+        source_id,
+        uuid4(),
+        now,
+        now + timedelta(days=30),
+    )
+    source.bio = "placeholder bio"
+    source.photo_s3_link = "https://storage.example/users/source/live.jpg"
+
+    target = await flow.users.upsert_telegram_profile(10, "Canonical", "canonical")
+    target.bio = "canonical bio"
+    target_non_conflicting_session = await flow.sessions.create_or_replace(
+        str(target.id), uuid4(), now, now + timedelta(days=30)
+    )
+    target_conflicting_session = await flow.sessions.create_or_replace(
+        str(target.id), first_device, now, now + timedelta(days=30)
+    )
+    target.photo_s3_link = "https://storage.example/users/target/live.jpg"
+    canonical_telescan_id = target.telescan_id
+    third = await flow.users.upsert_telegram_profile(11, "Third", "third")
+    await flow.blocks.create(source_id, third, now)
+    await flow.blocks.create(str(third.id), source, now)
+    outbound_report = await flow.reports.create(
+        source, third, uuid4(), ReportReason.OTHER, "outbound", now
+    )
+    inbound_report = await flow.reports.create(
+        third, source, uuid4(), ReportReason.OTHER, "inbound", now
+    )
+    await flow.confirmations.create_logout_all(
+        source_id, now, now + timedelta(minutes=5)
+    )
+    await flow.codes.create(
+        "source-pending-code",
+        source_id,
+        now,
+        now + timedelta(minutes=5),
+    )
+    issued = await flow.issue.execute(10, "Canonical", "canonical", None, now)
+
+    _, linked = await flow.link.execute(
+        issued.code, source_id, session_id, now + timedelta(seconds=1)
+    )
+
+    assert linked.id == target.id
+    assert linked.telescan_id == canonical_telescan_id
+    assert linked.bio == "canonical bio"
+    assert linked.photo_s3_link.endswith("/target/live.jpg")
+    assert await flow.users.get_by_id(source_id) is None
+    assert all(
+        session.user_id == str(target.id) for session in flow.sessions.items.values()
+    )
+    assert second_source_session.user_id == str(target.id)
+    assert target_non_conflicting_session.id in flow.sessions.items
+    assert target_conflicting_session.id not in flow.sessions.items
+    assert not any(
+        item.user_id == source_id for item in flow.confirmations.items.values()
+    )
+    assert not any(item.user_id == source_id for item in flow.codes.items.values())
+    assert outbound_report.reporter_id == str(target.id)
+    assert inbound_report.target_id == str(target.id)
+    assert all(
+        source_id not in {item.blocker_id, item.blocked_id}
+        for item in flow.blocks.items
+    )
+
+
+@pytest.mark.asyncio
+async def test_link_conflict_preflight_does_not_consume_code() -> None:
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+    _, _, source_id, session_id = await sign_in(flow, uuid4(), now)
+    target = await flow.users.upsert_telegram_profile(10, "Target", "target")
+    await flow.identities.create(
+        "different-apple-subject",
+        str(target.id),
+        None,
+        None,
+        now,
+    )
+    issued = await flow.issue.execute(10, "Target", "target", None, now)
+    code_hash = LinkCodeService("hmac-secret", 8).hash(issued.code)
+
+    with pytest.raises(TelegramIdentityConflict):
+        await flow.link.execute(
+            issued.code, source_id, session_id, now + timedelta(seconds=1)
+        )
+
+    assert flow.codes.items[code_hash].status == LinkCodeStatus.ISSUED
+    assert not flow.merges.journals
+
+
+@pytest.mark.asyncio
+async def test_prepared_merge_rejects_a_different_authorization_code() -> None:
+    flow = build_auth_flow()
+    now = datetime.now(UTC)
+    device_id = uuid4()
+    _, source, source_id, session_id = await sign_in(flow, device_id, now)
+    target = await flow.users.upsert_telegram_profile(10, "Target", "target")
+    first = await flow.issue.execute(10, "Target", "target", None, now)
+    first_hash = LinkCodeService("hmac-secret", 8).hash(first.code)
+    await flow.merges.prepare(
+        source,
+        target,
+        "apple-subject",
+        first_hash,
+        "link",
+        device_id,
+        now,
+    )
+    second = await flow.issue.execute(
+        10, "Target", "target", None, now + timedelta(seconds=1)
+    )
+    second_hash = LinkCodeService("hmac-secret", 8).hash(second.code)
+
+    with pytest.raises(InvalidLinkCode):
+        await flow.link.execute(
+            second.code,
+            source_id,
+            session_id,
+            now + timedelta(seconds=2),
+        )
+
+    assert flow.codes.items[second_hash].status == LinkCodeStatus.ISSUED
+    assert flow.merges.journals[source_id].authorization_code_hash == first_hash
 
 
 @pytest.mark.asyncio
@@ -397,6 +607,7 @@ async def test_review_code_is_separate_scoped_and_one_time() -> None:
         regular_service,
         review_codes,
         review_service,
+        flow.merges,
     )
 
     _, linked_user = await link.execute(
@@ -405,10 +616,10 @@ async def test_review_code_is_separate_scoped_and_one_time() -> None:
 
     assert linked_user.id == user.id
     assert not flow.codes.items
-    with pytest.raises(InvalidLinkCode):
-        await link.execute(
-            clear_code, str(user.id), session_id, now + timedelta(seconds=2)
-        )
+    _, retried_user = await link.execute(
+        clear_code, str(user.id), session_id, now + timedelta(seconds=2)
+    )
+    assert retried_user.id == user.id
 
 
 @pytest.mark.asyncio
@@ -418,7 +629,7 @@ async def test_confirmation_cancel_confirm_and_expire() -> None:
     _, _, current_user_id, session_id = await sign_in(flow, uuid4(), now)
     code = await flow.issue.execute(10, "Ada", "ada", None, now)
     _, user = await flow.link.execute(code.code, current_user_id, session_id, now)
-    confirmations = FakeConfirmations()
+    confirmations = flow.confirmations
     bot = FakeBot()
     request = RequestLogoutAll(flow.users, confirmations, bot, 300)
     decide = DecideConfirmation(flow.users, confirmations, flow.sessions)
@@ -478,6 +689,7 @@ async def test_logout_revokes_only_current_session_and_blocks_it_immediately() -
         sessions=flow.sessions,
         users=flow.users,
         apple_identities=flow.identities,
+        account_operation_guard=NoopAccountOperationGuard(),
     )
 
     credentials = HTTPAuthorizationCredentials(
@@ -562,17 +774,18 @@ async def test_account_deletion_cleans_domain_data_and_apple_identity() -> None:
     )
     await confirmations.create_logout_all(str(user.id), now, now + timedelta(minutes=5))
     storage = FakeStorage()
-    delete = DeleteAccount(
+    deletions = FakeAccountDeletionService(
         flow.users,
+        flow.identities,
         flow.codes,
         flow.sessions,
         confirmations,
-        FakeReports(),
-        FakeBlocks(),
-        PhotoService(storage, 1024),
+        flow.reports,
+        flow.blocks,
+        storage,
         review_codes,
-        flow.identities,
     )
+    delete = DeleteAccount(deletions)
 
     await delete.execute(str(user.id))
 

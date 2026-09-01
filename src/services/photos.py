@@ -1,3 +1,5 @@
+from pathlib import PurePosixPath
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 from src.domain.errors import InvalidPhoto
@@ -36,6 +38,16 @@ class PhotoService:
 
     async def delete_by_url(self, url: str) -> None:
         await self._storage.delete_by_url(url)
+
+    async def delete_report_prefix(self, report_id: UUID) -> None:
+        await self._storage.delete_report_prefix(report_id)
+
+    async def copy_for_report(self, report_id: UUID, source_url: str) -> str:
+        suffix = PurePosixPath(urlparse(source_url).path).suffix.lower()
+        if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
+            suffix = ".img"
+        object_name = f"moderation/reports/{report_id}/evidence{suffix}"
+        return await self._storage.copy_by_url(source_url, object_name)
 
     async def delete_all(self, telescan_id: UUID, current_url: str | None) -> None:
         if current_url:

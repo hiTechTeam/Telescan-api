@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch the durable Telescan API release transaction
+
+[Path]
+PathChanged=/home/ubuntu/telescan/.transactions/Telescan-api/active.json
+Unit=telescan-api-release-recovery.service
+
+[Install]
+WantedBy=multi-user.target

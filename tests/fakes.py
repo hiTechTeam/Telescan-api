@@ -4,8 +4,11 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from src.domain.enums import (
+    AccountDeletionStatus,
+    AccountMergeStatus,
     ConfirmationStatus,
     LinkCodeStatus,
+    ReportPhotoEvidenceStatus,
     ReportStatus,
 )
 from src.domain.errors import LinkCodeCollision
@@ -146,18 +149,22 @@ class FakeLinkCodes:
                 item.status = LinkCodeStatus.REVOKED
 
     async def create(self, code_hash, user_id, now, expires_at):
-        if code_hash in self.items:
-            raise LinkCodeCollision()
-        item = SimpleNamespace(
-            code_hash=code_hash,
-            user_id=user_id,
-            status=LinkCodeStatus.ISSUED,
-            created_at=now,
-            expires_at=expires_at,
-            attempts=0,
-        )
-        self.items[code_hash] = item
-        return item
+        async with self.lock:
+            if code_hash in self.items or any(
+                item.user_id == user_id and item.status == LinkCodeStatus.ISSUED
+                for item in self.items.values()
+            ):
+                raise LinkCodeCollision()
+            item = SimpleNamespace(
+                code_hash=code_hash,
+                user_id=user_id,
+                status=LinkCodeStatus.ISSUED,
+                created_at=now,
+                expires_at=expires_at,
+                attempts=0,
+            )
+            self.items[code_hash] = item
+            return item
 
     async def consume(self, code_hash, device_id, now):
         async with self.lock:
@@ -171,8 +178,23 @@ class FakeLinkCodes:
             item.status = LinkCodeStatus.CONSUMED
             item.consumed_at = now
             item.consumed_by_device_id = device_id
+            item.expires_at = max(item.expires_at, now + timedelta(days=30))
             item.attempts += 1
             return item
+
+    async def find_for_link(self, code_hash, device_id, now):
+        item = self.items.get(code_hash)
+        if item is None:
+            return None
+        if item.status == LinkCodeStatus.ISSUED and item.expires_at > now:
+            return item
+        if (
+            item.status == LinkCodeStatus.CONSUMED
+            and getattr(item, "consumed_by_device_id", None) == device_id
+            and item.expires_at > now
+        ):
+            return item
+        return None
 
     async def delete_for_user(self, user_id):
         self.items = {
@@ -226,6 +248,9 @@ class FakeSessions:
     async def revoke(self, session_id, now):
         if session_id in self.items:
             self.items[session_id].revoked_at = now
+
+    async def delete(self, session_id):
+        self.items.pop(session_id, None)
 
     async def revoke_all(self, user_id, now):
         for session in self.items.values():
@@ -352,7 +377,14 @@ class FakeReports:
             target_name=target.tg_name,
             target_username=target.tg_username,
             target_bio=target.bio,
-            target_photo_url=target.photo_s3_link,
+            target_photo_url=None,
+            target_photo_source_url=target.photo_s3_link,
+            target_photo_evidence_status=(
+                ReportPhotoEvidenceStatus.COPY_FAILED
+                if target.photo_s3_link
+                else ReportPhotoEvidenceStatus.ABSENT
+            ),
+            target_photo_evidence_attempts=0,
             status=ReportStatus.PENDING,
             created_at=now,
             updated_at=now,
@@ -360,6 +392,8 @@ class FakeReports:
             retention_until=None,
             moderator_id=None,
             moderator_note=None,
+            revision=0,
+            moderation_history=[],
         )
         self.items[item.public_id] = item
         return item
@@ -375,19 +409,75 @@ class FakeReports:
             items = [item for item in items if item.status == status]
         return items[:limit]
 
-    async def update_status(self, report_id, status, moderator_id, note, now):
+    async def update_status(
+        self,
+        report_id,
+        status,
+        moderator_id,
+        note,
+        note_is_set,
+        expected_revision,
+        now,
+    ):
         item = self.items.get(report_id)
-        if item is None:
+        if item is None or item.revision != expected_revision:
             return None
+        previous_status = item.status
         item.status = status
         item.moderator_id = moderator_id
-        item.moderator_note = note
+        if note_is_set:
+            item.moderator_note = note
+        item.revision += 1
+        item.moderation_history.append(
+            SimpleNamespace(
+                revision=item.revision,
+                from_status=previous_status,
+                to_status=status,
+                moderator_id=moderator_id,
+                note=item.moderator_note,
+                note_changed=note_is_set,
+                created_at=now,
+            )
+        )
         item.updated_at = now
         item.resolved_at = None if status == ReportStatus.REVIEWING else now
         item.retention_until = (
             None if status == ReportStatus.REVIEWING else now + timedelta(days=180)
         )
         return item
+
+    async def update_photo_evidence(self, report_id, evidence_url, now):
+        item = self.items.get(report_id)
+        if item is None:
+            return None
+        item.target_photo_url = evidence_url
+        item.target_photo_evidence_status = ReportPhotoEvidenceStatus.AVAILABLE
+        item.updated_at = now
+        return item
+
+    async def record_photo_evidence_attempt(self, report_id, now):
+        item = self.items.get(report_id)
+        if item is not None:
+            item.target_photo_evidence_attempts += 1
+            item.updated_at = now
+
+    async def list_pending_photo_evidence(self, limit):
+        return [
+            item
+            for item in self.items.values()
+            if item.target_photo_evidence_status
+            == ReportPhotoEvidenceStatus.COPY_FAILED
+        ][:limit]
+
+    async def list_due_for_cleanup(self, now, limit):
+        return [
+            item
+            for item in self.items.values()
+            if item.retention_until is not None and item.retention_until <= now
+        ][:limit]
+
+    async def delete_by_public_id(self, report_id):
+        self.items.pop(report_id, None)
 
     async def anonymize_user(self, user_id):
         for item in self.items.values():
@@ -467,8 +557,21 @@ class FakeStorage:
     async def delete_by_url(self, public_url):
         self.deleted.append(public_url)
 
+    async def copy_by_url(self, source_url, object_name):
+        self.uploaded[object_name] = self.uploaded.get(source_url, b"copied")
+        return f"https://storage.example/{object_name}"
+
     async def delete_user_prefix(self, telescan_id):
         self.deleted.append(f"users/{telescan_id}/")
+
+    async def delete_report_prefix(self, report_id):
+        prefix = f"moderation/reports/{report_id}/"
+        self.deleted.append(prefix)
+        self.uploaded = {
+            name: data
+            for name, data in self.uploaded.items()
+            if not name.startswith(prefix)
+        }
 
 
 class FakeBot:
@@ -479,3 +582,172 @@ class FakeBot:
         self, confirmation_id, chat_id, expires_at
     ):
         self.requests.append((confirmation_id, chat_id, expires_at))
+
+
+class FakeAccountMergeService:
+    def __init__(
+        self,
+        users,
+        identities,
+        codes,
+        sessions,
+        blocks=None,
+        reports=None,
+        confirmations=None,
+    ):
+        self.users = users
+        self.identities = identities
+        self.codes = codes
+        self.sessions = sessions
+        self.blocks = blocks
+        self.reports = reports
+        self.confirmations = confirmations
+        self.journals = {}
+
+    async def get_by_source(self, source_user_id):
+        return self.journals.get(source_user_id)
+
+    async def prepare(
+        self,
+        source_user,
+        target_user,
+        apple_subject,
+        code_hash,
+        code_kind,
+        device_id,
+        now,
+    ):
+        source_id = str(source_user.id)
+        journal = self.journals.get(source_id)
+        if journal is None:
+            journal = SimpleNamespace(
+                id=f"merge-{len(self.journals) + 1}",
+                source_user_id=source_id,
+                target_user_id=str(target_user.id),
+                apple_subject=apple_subject,
+                source_telescan_id=source_user.telescan_id,
+                source_photo_url=source_user.photo_s3_link,
+                authorization_code_hash=code_hash,
+                authorization_code_kind=code_kind,
+                authorization_device_id=device_id,
+                authorized_at=None,
+                status=AccountMergeStatus.PREPARED,
+            )
+            self.journals[source_id] = journal
+        return journal
+
+    async def authorize(self, journal, now):
+        journal.authorized_at = now
+        journal.authorization_code_hash = None
+        journal.authorization_code_kind = None
+        journal.authorization_device_id = None
+        return journal
+
+    async def consume_and_authorize(self, journal, consume, now):
+        consumed = await consume()
+        if consumed is None:
+            return journal, None
+        return await self.authorize(journal, now), consumed
+
+    async def continue_merge(self, journal, now):
+        if journal.authorized_at is None:
+            raise RuntimeError("merge is not authorized")
+        source_id = str(journal.source_user_id)
+        target_id = str(journal.target_user_id)
+        journal.status = AccountMergeStatus.MIGRATING
+        await self.identities.move_to_user(
+            journal.apple_subject, source_id, target_id, now
+        )
+        source_sessions = [
+            item for item in self.sessions.items.values() if item.user_id == source_id
+        ]
+        source_devices = {item.device_id for item in source_sessions}
+        self.sessions.items = {
+            key: item
+            for key, item in self.sessions.items.items()
+            if item.user_id != target_id or item.device_id not in source_devices
+        }
+        for item in source_sessions:
+            item.user_id = target_id
+        await self.codes.delete_for_user(source_id)
+        if self.confirmations is not None:
+            await self.confirmations.delete_for_user(source_id)
+        if self.blocks is not None:
+            for item in self.blocks.items:
+                if item.blocker_id == source_id:
+                    item.blocker_id = target_id
+                if item.blocked_id == source_id:
+                    item.blocked_id = target_id
+            unique = {}
+            for item in self.blocks.items:
+                if item.blocker_id != item.blocked_id:
+                    unique[(item.blocker_id, item.blocked_id)] = item
+            self.blocks.items = list(unique.values())
+        if self.reports is not None:
+            target = await self.users.get_by_id(target_id)
+            for item in self.reports.items.values():
+                if item.reporter_id == source_id:
+                    item.reporter_id = target_id
+                    item.reporter_telescan_id = target.telescan_id
+                if item.target_id == source_id:
+                    item.target_id = target_id
+                    item.target_telescan_id = target.telescan_id
+        await self.users.delete(source_id)
+        journal.status = AccountMergeStatus.COMPLETED
+        return journal
+
+    async def resume(self, source_user_id, now):
+        return await self.continue_merge(self.journals[source_user_id], now)
+
+
+class FakeAccountDeletionService:
+    def __init__(
+        self,
+        users,
+        identities,
+        codes,
+        sessions,
+        confirmations,
+        reports,
+        blocks,
+        storage,
+        review_codes=None,
+    ):
+        self.users = users
+        self.identities = identities
+        self.codes = codes
+        self.sessions = sessions
+        self.confirmations = confirmations
+        self.reports = reports
+        self.blocks = blocks
+        self.storage = storage
+        self.review_codes = review_codes
+        self.journals = {}
+
+    async def delete(self, user_id):
+        user = await self.users.get_by_id(user_id)
+        if user is None:
+            raise LookupError(user_id)
+        journal = SimpleNamespace(
+            id=f"deletion-{len(self.journals) + 1}",
+            user_id=user_id,
+            telescan_id=user.telescan_id,
+            photo_url=user.photo_s3_link,
+            status=AccountDeletionStatus.PREPARED,
+        )
+        self.journals[user_id] = journal
+        await self.sessions.revoke_all(user_id, datetime.now(UTC))
+        await self.codes.delete_for_user(user_id)
+        if self.review_codes is not None:
+            await self.review_codes.delete_for_user(user_id)
+        await self.confirmations.delete_for_user(user_id)
+        await self.blocks.delete_for_user(user_id)
+        await self.reports.anonymize_user(user_id)
+        await self.sessions.delete_for_user(user_id)
+        await self.identities.delete_for_user(user_id)
+        await self.users.delete(user_id)
+        journal.status = AccountDeletionStatus.DB_COMPLETE
+        if journal.photo_url:
+            await self.storage.delete_by_url(journal.photo_url)
+        await self.storage.delete_user_prefix(journal.telescan_id)
+        journal.status = AccountDeletionStatus.COMPLETED

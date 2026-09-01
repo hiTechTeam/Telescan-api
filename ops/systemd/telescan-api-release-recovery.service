@@ -1,0 +1,20 @@
+[Unit]
+Description=Recover an interrupted Telescan API production release
+After=docker.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/home/ubuntu/telescan/.transactions/Telescan-api/active.json
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/telescan
+ExecStart=/usr/bin/bash /home/ubuntu/telescan/.transactions/Telescan-api/controller/deploy-production.sh --recover-only
+Restart=on-failure
+RestartSec=10s
+RestartPreventExitStatus=20
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target

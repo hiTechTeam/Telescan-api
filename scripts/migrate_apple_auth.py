@@ -15,6 +15,8 @@ from src.core.config import Settings
 
 
 APPLY_CONFIRMATION = "MIGRATE_APPLE_AUTH"
+TARGET_TELEGRAM_INDEX = "uniq_tg_id"
+TRANSIENT_TELEGRAM_INDEX = "uniq_tg_id_partial"
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,12 +33,28 @@ def migration_report(
     apply: bool,
     revoke_legacy_sessions: bool = True,
 ) -> dict[str, object]:
-    telegram_index = users.index_information().get("uniq_tg_id")
+    index_information = users.index_information()
+    target_telegram_index = index_information.get(TARGET_TELEGRAM_INDEX)
+    transient_telegram_index = index_information.get(TRANSIENT_TELEGRAM_INDEX)
     expected_filter = {"tg_id": {"$type": "number"}}
-    needs_telegram_rebuild = (
-        telegram_index is None
-        or telegram_index.get("unique") is not True
-        or telegram_index.get("partialFilterExpression") != expected_filter
+    target_is_valid = (
+        target_telegram_index is not None
+        and target_telegram_index.get("unique") is True
+        and target_telegram_index.get("partialFilterExpression") == expected_filter
+    )
+    needs_telegram_rebuild = not target_is_valid
+    duplicate_telegram_ids = list(
+        users.aggregate(
+            [
+                {"$match": {"tg_id": {"$type": "number"}}},
+                {"$group": {"_id": "$tg_id", "count": {"$sum": 1}}},
+                {"$match": {"count": {"$gt": 1}}},
+                {"$count": "count"},
+            ]
+        )
+    )
+    duplicate_count = (
+        duplicate_telegram_ids[0]["count"] if duplicate_telegram_ids else 0
     )
     apple_indexes = apple_identities.index_information()
     missing_apple_indexes = [
@@ -51,13 +69,19 @@ def migration_report(
     legacy_sessions_revoked = 0
 
     if apply:
-        if telegram_index is not None and needs_telegram_rebuild:
-            users.drop_index("uniq_tg_id")
+        if duplicate_count:
+            raise RuntimeError(
+                "Refusing Telegram index migration: duplicate numeric tg_id values"
+            )
         if needs_telegram_rebuild:
+            if target_telegram_index is not None:
+                users.drop_index(TARGET_TELEGRAM_INDEX)
+            if transient_telegram_index is not None:
+                users.drop_index(TRANSIENT_TELEGRAM_INDEX)
             users.create_index(
                 [("tg_id", ASCENDING)],
                 unique=True,
-                name="uniq_tg_id",
+                name=TARGET_TELEGRAM_INDEX,
                 partialFilterExpression=expected_filter,
             )
         apple_identities.create_index(
@@ -75,6 +99,7 @@ def migration_report(
 
     return {
         "telegram_index_rebuild": needs_telegram_rebuild,
+        "duplicate_telegram_ids": duplicate_count,
         "missing_apple_indexes": missing_apple_indexes,
         "apple_identity_count": apple_identities.count_documents({}),
         "legacy_active_sessions": legacy_active_sessions,

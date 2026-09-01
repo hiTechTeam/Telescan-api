@@ -3,7 +3,12 @@
 from fastapi import APIRouter, Query, Request, status
 from fastapi.responses import HTMLResponse
 
-from src.api.presentation.legal import render_page, resolve_language
+from src.api.presentation.legal import (
+    LEGAL_SOURCE_SHA256,
+    LEGAL_VERSION,
+    render_page,
+    resolve_language,
+)
 
 router = APIRouter(tags=["legal"], include_in_schema=False)
 
@@ -22,6 +27,8 @@ def page_response(kind: str, language: str) -> HTMLResponse:
             ),
             "Referrer-Policy": "strict-origin-when-cross-origin",
             "Vary": "Accept-Language",
+            "X-Telescan-Legal-Hash": LEGAL_SOURCE_SHA256,
+            "X-Telescan-Legal-Version": LEGAL_VERSION,
             "X-Content-Type-Options": "nosniff",
         },
     )

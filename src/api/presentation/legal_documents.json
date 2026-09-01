@@ -1,0 +1,398 @@
+{
+  "schema_version": 1,
+  "legal_version": "2026-09-01",
+  "documents": {
+    "privacy": {
+      "en": {
+        "title": "Privacy Policy",
+        "summary": "How Telescan processes account, profile, nearby-discovery, and moderation data.",
+        "effective_date": "2026-09-01",
+        "effective_label": "Effective September 1, 2026",
+        "canonical_url": "https://tgtelescan.ru/privacy",
+        "sections": [
+          {
+            "id": "overview",
+            "title": "Overview",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan is an iOS app for discovering nearby users and opening the public Telegram profiles they choose to share. This policy applies to the Telescan app, Telegram bots, API, and supporting service providers. Use of Telescan is also governed by the [Terms of Service](https://tgtelescan.ru/terms)."}
+            ]
+          },
+          {
+            "id": "data-we-process",
+            "title": "Data we process",
+            "blocks": [
+              {"type": "paragraph", "text": "When you use Sign in with Apple, Telescan receives a stable Apple account identifier. If you choose to share them, Telescan may also receive your name and email address or Apple private-relay email. Apple authenticates the primary Telescan account."},
+              {"type": "paragraph", "text": "When you request a linking code through the Telescan Telegram bot, Telescan may receive your Telegram numeric ID, first name, username, and current public profile photo. Linking codes are temporary and single-use, and at most one active code is kept per account. An HMAC code hash is kept while the code is issued. After successful use, that hash and the consuming device identifier may be retained for up to 30 days solely to make interrupted linking and account merging idempotent and recoverable. The legacy authentication API is prohibited in production."},
+              {"type": "paragraph", "text": "Telescan creates a random public Telescan ID and per-device session records. The iOS app stores session credentials in the system Keychain. If an Apple-created account is linked to an existing Telegram-created profile, the Telegram profile remains canonical and its public Telescan ID, BIO, and photo are preserved; temporary account data is migrated or revoked under the account-merge workflow."},
+              {"type": "paragraph", "text": "You may use the current public Telegram photo or select another image through the iOS camera or system photo picker. Telescan accesses only the selected image, prepares it on the device, and uploads a copy for profile display. You may also add an optional BIO of up to 36 characters."}
+            ]
+          },
+          {
+            "id": "nearby-discovery",
+            "title": "Nearby discovery",
+            "blocks": [
+              {"type": "paragraph", "text": "While discoverability is enabled, the app broadcasts your random Telescan ID over Bluetooth Low Energy. Nearby authenticated Telescan devices may use that identifier to request the profile you share. A raw or unresolved Bluetooth identifier is not treated as an authenticated profile and does not create a user-facing encounter notification."},
+              {"type": "paragraph", "text": "Bluetooth signal strength, approximate distance, and the nearby-device list are processed on the device. Telescan does not send those measurements to the server. Radio identifiers may still be observed or replayed by devices within range, and Bluetooth must not be treated as precise proof of identity or location."},
+              {"type": "paragraph", "text": "After a complete authenticated profile leaves the nearby list, the app may keep its public profile snapshot and last-seen time in a device-local **Met** history. This history contains no GPS location or distance measurements, is not uploaded, and is automatically removed after 24 hours. You can clear it earlier; it is also cleared on sign-out, account deletion, or account replacement. Blocking a profile removes it from Met and pending encounter state."},
+              {"type": "paragraph", "text": "When you save another profile, the app keeps its public profile snapshot in a device-local **Saved** list. Saved profiles are not uploaded or synchronized. A blocked saved profile is hidden while the block is active. Saved data is cleared on sign-out, account deletion, or account replacement."}
+            ]
+          },
+          {
+            "id": "reports-and-blocks",
+            "title": "Reports, blocks, and moderation",
+            "blocks": [
+              {"type": "paragraph", "text": "A report stores identifiers for the reporting and reported accounts, an optional comment of up to 500 characters, relevant profile context, timestamps, review status, and append-only moderation events. The reported user is not shown the reporter's identity through the product."},
+              {"type": "paragraph", "text": "When a report is created, Telescan attempts to copy the reported profile photo into a separate moderation-evidence object. Replacing a live profile photo or deleting the account does not delete that evidence before the report retention period ends. If no photo is available or the copy fails, the report records that evidence status explicitly instead of representing a broken URL as a snapshot."},
+              {"type": "paragraph", "text": "When you block a profile, Telescan stores the relationship and limited profile context needed to display and manage the block. Blocking hides profile access in both directions until it is removed and removes the profile from device-local encounter state."}
+            ]
+          },
+          {
+            "id": "operational-data",
+            "title": "Operational request information",
+            "blocks": [
+              {"type": "paragraph", "text": "Service providers may process IP address, time, requested host and path, response status, user agent, and performance or forwarding metadata needed to deliver, protect, troubleshoot, and maintain Telescan. This information is not used for advertising or behavioral profiling."}
+            ]
+          },
+          {
+            "id": "data-not-collected",
+            "title": "Data we do not collect",
+            "blocks": [
+              {"type": "list", "items": ["GPS location or server-side movement history", "Telegram messages, contacts, or passwords", "Advertising identifiers", "Precise Bluetooth-distance history on the server", "Third-party advertising or behavioral analytics data"]}
+            ]
+          },
+          {
+            "id": "use-and-sharing",
+            "title": "How data is used and shared",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan uses data to create and authenticate accounts, show shared profiles, operate nearby discovery, maintain device-local lists, manage photos and sessions, process reports and blocks, prevent abuse, provide support, and comply with legal obligations. Telescan does not sell personal data."},
+              {"type": "paragraph", "text": "Information may be disclosed to authenticated Telescan users who receive or already know a public Telescan ID; to Telegram and Apple as required by the features you use; to hosting, network, storage, backup, and other infrastructure providers; to authorized moderators; or when required by law."},
+              {"type": "paragraph", "text": "Providers may process information in Russia, the European Economic Area, and other jurisdictions in which Telegram, Apple, or Telescan providers operate. Data-protection rules may differ between jurisdictions."}
+            ]
+          },
+          {
+            "id": "security-and-retention",
+            "title": "Security and retention",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan uses encrypted network transport, verified Apple identity tokens, temporary linking codes, per-device sessions, system Keychain storage, restricted service access, backups, and operational security controls. No system can guarantee absolute security."},
+              {"type": "paragraph", "text": "The live account record and current profile photo remain while the account is active. Linking codes and sessions have limited lifetimes. Limited account-merge and account-deletion journals, including affected account identifiers, authorization-proof and cleanup metadata, and an affected photo URL, remain while an operation is incomplete and for up to 30 days after completion. Blocks remain until removed or account deletion. Pending reports remain while reviewed; resolved or dismissed reports and their moderation evidence are scheduled for deletion after 180 days. Backup residuals may remain until the applicable backup rotation expires."},
+              {"type": "paragraph", "text": "Device-local Met entries are removed after 24 hours. Device-local Saved entries remain until removed by the user or until sign-out, account deletion, or account replacement."}
+            ]
+          },
+          {
+            "id": "deletion",
+            "title": "Account and data deletion",
+            "blocks": [
+              {"type": "paragraph", "text": "Open your profile in the app, choose **Delete account**, and confirm. Telescan revokes active sessions and removes the live account, linking codes, stored live profile photos, blocks, and local account data and caches. Direct report relations are removed; limited report snapshots and moderation evidence may remain for the 180-day moderation period. Backup residuals expire through normal backup rotation."},
+              {"type": "paragraph", "text": "Deletion cannot be undone and does not delete or modify your Apple or Telegram account."}
+            ]
+          },
+          {
+            "id": "choices-and-rights",
+            "title": "Your choices and rights",
+            "blocks": [
+              {"type": "list", "items": ["Disable discoverability", "Clear device-local encounter history", "Save or remove local public profile snapshots", "Replace or remove your BIO and shared photo", "Report, block, or unblock profiles", "Sign out the current device", "Delete your Telescan account and all its sessions"]},
+              {"type": "paragraph", "text": "Depending on applicable law, you may also have rights to request access, correction, deletion, restriction, portability, or objection regarding personal data. Contact [admin@tgtelescan.ru](mailto:admin@tgtelescan.ru)."}
+            ]
+          },
+          {
+            "id": "children",
+            "title": "Children",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan is not intended for children under 13. A higher minimum age may apply where required by local law or Apple, Telegram, or other platform rules."}
+            ]
+          },
+          {
+            "id": "changes-and-contact",
+            "title": "Changes and contact",
+            "blocks": [
+              {"type": "paragraph", "text": "This policy may be updated when the service or legal requirements change. The effective date and published legal content hash identify the current version."},
+              {"type": "paragraph", "text": "Privacy questions and requests: [admin@tgtelescan.ru](mailto:admin@tgtelescan.ru)."}
+            ]
+          }
+        ]
+      },
+      "ru": {
+        "title": "Политика конфиденциальности",
+        "summary": "Как Telescan обрабатывает данные аккаунта, профиля, поиска людей рядом и модерации.",
+        "effective_date": "2026-09-01",
+        "effective_label": "Действует с 1 сентября 2026 года",
+        "canonical_url": "https://tgtelescan.ru/privacy?lang=ru",
+        "sections": [
+          {
+            "id": "overview",
+            "title": "Общие положения",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan — приложение для iOS, которое помогает находить пользователей рядом и открывать публичные профили Telegram, которыми они решили поделиться. Политика распространяется на приложение, Telegram-ботов, API и поставщиков, обеспечивающих работу сервиса. Использование Telescan также регулируют [Условия использования](https://tgtelescan.ru/terms?lang=ru)."}
+            ]
+          },
+          {
+            "id": "data-we-process",
+            "title": "Какие данные мы обрабатываем",
+            "blocks": [
+              {"type": "paragraph", "text": "При входе с Apple Telescan получает постоянный идентификатор аккаунта Apple, а имя и email или приватный relay-email Apple — только если вы решили ими поделиться. Apple используется для аутентификации основного аккаунта Telescan."},
+              {"type": "paragraph", "text": "При запросе кода привязки через Telegram-бота Telescan может получить ваш числовой Telegram ID, имя, username и текущую публичную фотографию. Коды являются временными и одноразовыми, а у аккаунта может быть не более одного активного кода. HMAC-хеш хранится, пока код активен. После успешного использования этот хеш и идентификатор использовавшего устройства могут храниться до 30 дней исключительно для идемпотентного завершения и восстановления прерванной привязки или объединения аккаунтов. Legacy API аутентификации запрещён в production."},
+              {"type": "paragraph", "text": "Telescan создаёт случайный публичный Telescan ID и отдельные сессии устройств. Приложение iOS хранит данные сессии в системном Keychain. Если аккаунт, созданный через Apple, связывается с существующим профилем Telegram, профиль Telegram остаётся каноническим и сохраняет публичный Telescan ID, BIO и фотографию; временные данные переносятся или отзываются по процедуре объединения аккаунтов."},
+              {"type": "paragraph", "text": "Можно использовать текущую публичную фотографию Telegram или выбрать другое изображение через камеру либо системный медиапикер iOS. Telescan получает доступ только к выбранному изображению, подготавливает его на устройстве и загружает копию для показа профиля. Также можно добавить необязательное BIO длиной до 36 символов."}
+            ]
+          },
+          {
+            "id": "nearby-discovery",
+            "title": "Поиск людей рядом",
+            "blocks": [
+              {"type": "paragraph", "text": "Когда видимость включена, приложение передаёт случайный Telescan ID через Bluetooth Low Energy. Устройства авторизованных пользователей Telescan рядом могут использовать его, чтобы запросить опубликованный профиль. Необработанный или неподтверждённый Bluetooth-идентификатор не считается профилем пользователя и не создаёт уведомление о встрече."},
+              {"type": "paragraph", "text": "Сила сигнала, примерное расстояние и список устройств рядом обрабатываются на устройстве и не отправляются на сервер. Радиоидентификаторы могут быть замечены или повторно переданы устройствами в зоне сигнала, поэтому Bluetooth нельзя считать точным подтверждением личности или местоположения."},
+              {"type": "paragraph", "text": "После исчезновения полного подтверждённого профиля из списка рядом приложение может сохранить его публичный снимок и время последней встречи в локальном разделе **«Виделись»**. История не содержит GPS или замеров расстояния, не загружается на сервер и удаляется через 24 часа. Её можно очистить раньше; она также очищается при выходе, удалении или смене аккаунта. Блокировка удаляет профиль из истории и ожидающих событий встречи."},
+              {"type": "paragraph", "text": "Сохранённый профиль хранится только на текущем устройстве и не синхронизируется. Заблокированный сохранённый профиль скрыт, пока блокировка активна. Сохранённые данные очищаются при выходе, удалении или смене аккаунта."}
+            ]
+          },
+          {
+            "id": "reports-and-blocks",
+            "title": "Жалобы, блокировки и модерация",
+            "blocks": [
+              {"type": "paragraph", "text": "Жалоба содержит идентификаторы отправителя и цели, необязательный комментарий до 500 символов, контекст профиля, время, статус и неизменяемую последовательность событий модерации. Пользователь, на которого пожаловались, не видит личность отправителя через продукт."},
+              {"type": "paragraph", "text": "При создании жалобы Telescan пытается скопировать текущую фотографию цели в отдельный объект доказательств модерации. Замена фотографии или удаление аккаунта не удаляют эту копию до окончания срока хранения жалобы. Если фотографии нет или копирование не удалось, жалоба явно сохраняет этот статус вместо неработающей ссылки, названной снимком."},
+              {"type": "paragraph", "text": "Блокировка хранит связь аккаунтов и ограниченный контекст, необходимый для управления блокировкой. Она скрывает доступ к профилям в обоих направлениях и удаляет профиль из локального состояния встреч."}
+            ]
+          },
+          {
+            "id": "operational-data",
+            "title": "Операционные данные запросов",
+            "blocks": [
+              {"type": "paragraph", "text": "Поставщики могут обрабатывать IP-адрес, время, запрошенный host и path, статус ответа, user agent и служебные данные производительности или пересылки, необходимые для работы, защиты и диагностики Telescan. Эти сведения не используются для рекламы или поведенческого профилирования."}
+            ]
+          },
+          {
+            "id": "data-not-collected",
+            "title": "Что мы не собираем",
+            "blocks": [
+              {"type": "list", "items": ["GPS-геолокацию или серверную историю перемещений", "Сообщения, контакты или пароли Telegram", "Рекламные идентификаторы", "Точную историю Bluetooth-расстояний на сервере", "Данные сторонней рекламы или поведенческой аналитики"]}
+            ]
+          },
+          {
+            "id": "use-and-sharing",
+            "title": "Использование и передача данных",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan использует данные для создания и аутентификации аккаунтов, показа опубликованных профилей, поиска людей рядом, локальных списков, управления фотографиями и сессиями, обработки жалоб и блокировок, защиты от злоупотреблений, поддержки и соблюдения закона. Telescan не продаёт персональные данные."},
+              {"type": "paragraph", "text": "Информация может передаваться авторизованным пользователям, которые получили или уже знают публичный Telescan ID; Telegram и Apple для выбранных вами функций; поставщикам хостинга, сети, хранилища и резервного копирования; уполномоченным модераторам; либо по требованию закона."},
+              {"type": "paragraph", "text": "Поставщики могут обрабатывать информацию в России, Европейской экономической зоне и других юрисдикциях, где работают Telegram, Apple или поставщики Telescan. Правила защиты данных могут различаться."}
+            ]
+          },
+          {
+            "id": "security-and-retention",
+            "title": "Безопасность и хранение",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan использует шифрование сетевого трафика, проверку identity-токенов Apple, временные коды, отдельные сессии устройств, системный Keychain, ограничение служебного доступа, резервное копирование и операционные меры безопасности. Абсолютная безопасность не гарантируется."},
+              {"type": "paragraph", "text": "Активная запись аккаунта и текущая фотография хранятся, пока аккаунт существует. Коды и сессии имеют ограниченный срок. Ограниченные журналы объединения и удаления аккаунтов, включая идентификаторы затронутых аккаунтов, метаданные доказательства авторизации и очистки, а также URL затронутой фотографии, хранятся до завершения операции и не более 30 дней после него. Блокировки хранятся до отмены или удаления аккаунта. Ожидающие жалобы хранятся до решения; закрытые жалобы и их доказательства удаляются по расписанию через 180 дней. Остаточные копии могут сохраняться до завершения ротации резервных копий."},
+              {"type": "paragraph", "text": "Локальные записи «Виделись» удаляются через 24 часа. «Сохранённые» остаются до удаления пользователем, выхода, удаления или смены аккаунта."}
+            ]
+          },
+          {
+            "id": "deletion",
+            "title": "Удаление аккаунта и данных",
+            "blocks": [
+              {"type": "paragraph", "text": "Откройте профиль в приложении, выберите **«Удалить аккаунт»** и подтвердите. Telescan отзывает активные сессии и удаляет действующую запись аккаунта, коды привязки, текущие фотографии профиля, блокировки, локальные данные и кеши. Прямые связи с жалобами удаляются; ограниченные снимки и доказательства модерации могут сохраняться до 180 дней. Остаточные копии удаляются в рамках обычной ротации backup."},
+              {"type": "paragraph", "text": "Удаление нельзя отменить; оно не удаляет и не изменяет аккаунты Apple или Telegram."}
+            ]
+          },
+          {
+            "id": "choices-and-rights",
+            "title": "Ваш выбор и права",
+            "blocks": [
+              {"type": "list", "items": ["Отключить видимость", "Очистить локальную историю встреч", "Сохранить или удалить локальные снимки профилей", "Заменить или удалить BIO и общую фотографию", "Пожаловаться, заблокировать или разблокировать профиль", "Выйти на текущем устройстве", "Удалить аккаунт Telescan и все его сессии"]},
+              {"type": "paragraph", "text": "В зависимости от закона вы также можете иметь право запросить доступ, исправление, удаление, ограничение, перенос или возразить против обработки данных. Обращайтесь по адресу [admin@tgtelescan.ru](mailto:admin@tgtelescan.ru)."}
+            ]
+          },
+          {
+            "id": "children",
+            "title": "Дети",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan не предназначен для детей младше 13 лет. Закон или правила Apple, Telegram и других платформ могут устанавливать более высокий минимальный возраст."}
+            ]
+          },
+          {
+            "id": "changes-and-contact",
+            "title": "Изменения и контакты",
+            "blocks": [
+              {"type": "paragraph", "text": "Политика может обновляться при изменении сервиса или требований закона. Дата вступления в силу и опубликованный hash legal-контента обозначают текущую версию."},
+              {"type": "paragraph", "text": "Вопросы и запросы о конфиденциальности: [admin@tgtelescan.ru](mailto:admin@tgtelescan.ru)."}
+            ]
+          }
+        ]
+      }
+    },
+    "terms": {
+      "en": {
+        "title": "Terms of Service",
+        "summary": "The terms for using the Telescan app, bots, API, and related services.",
+        "effective_date": "2026-09-01",
+        "effective_label": "Effective September 1, 2026",
+        "canonical_url": "https://tgtelescan.ru/terms",
+        "sections": [
+          {
+            "id": "agreement",
+            "title": "Agreement",
+            "blocks": [
+              {"type": "paragraph", "text": "These Terms govern use of the Telescan iOS app, Telegram bots, API, and related services. By using Telescan, you agree to these Terms and the [Privacy Policy](https://tgtelescan.ru/privacy). If you do not agree, do not use Telescan."}
+            ]
+          },
+          {
+            "id": "service",
+            "title": "The service",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan helps nearby users discover and open public Telegram profiles their owners choose to share. Bluetooth Low Energy provides local discovery. An internet connection is required for registration, Sign in with Apple, Telegram linking, profile loading, photo management, reports, blocks, logout, and account deletion."},
+              {"type": "paragraph", "text": "Telescan is an experimental service. Bluetooth visibility and distance estimates may be delayed, incomplete, replayed, or inaccurate. Do not use Telescan for safety, navigation, emergencies, identity verification, or decisions that require precise physical proximity."}
+            ]
+          },
+          {
+            "id": "account-and-content",
+            "title": "Your account and content",
+            "blocks": [
+              {"type": "paragraph", "text": "You must be permitted to use Apple services, Telegram, and Telescan under applicable law and platform rules. You are responsible for linked devices, accounts, profile information, BIO, and uploaded photos. Share only content you have the right to use."},
+              {"type": "paragraph", "text": "Your Telescan ID is advertised nearby only while discoverability is enabled. Authenticated users who already know that identifier may still request the shared profile, and radio identifiers can be observed or replayed by devices in range."}
+            ]
+          },
+          {
+            "id": "reports-and-blocks",
+            "title": "Reports and blocks",
+            "blocks": [
+              {"type": "paragraph", "text": "You may report or block a profile. Reports must be submitted in good faith, contain only relevant information, and may include an optional comment. A report does not guarantee a particular decision or response time. Blocking hides profile access in both directions until removed."}
+            ]
+          },
+          {
+            "id": "acceptable-use",
+            "title": "Acceptable use",
+            "blocks": [
+              {"type": "paragraph", "text": "Do not use Telescan to:"},
+              {"type": "list", "items": ["Harass, stalk, threaten, impersonate, deceive, or harm another person", "Collect, publish, or misuse another person's information", "Upload unlawful content or content that infringes another person's rights", "Submit knowingly false, abusive, or retaliatory reports", "Probe, disrupt, overload, bypass, or interfere with the service or its security", "Use automation or reverse engineering in violation of applicable law or platform terms"]},
+              {"type": "paragraph", "text": "Access may be limited when reasonably necessary to protect users, protect the service, investigate abuse, or comply with law."}
+            ]
+          },
+          {
+            "id": "third-parties",
+            "title": "Third-party services",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan relies on Telegram, Apple platforms, network and hosting providers, storage providers, and other infrastructure. Their availability and terms are separate from ours."},
+              {"type": "paragraph", "text": "Apps distributed through the App Store are also subject to Apple's [Standard Licensed Application End User License Agreement](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) unless Apple or the provider supplies another applicable agreement."}
+            ]
+          },
+          {
+            "id": "intellectual-property",
+            "title": "Intellectual property",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan software, documentation, branding, visual identity, and service materials are proprietary unless a specific third-party notice says otherwise. Use of the service does not transfer ownership or grant permission to copy, modify, publish, distribute, sublicense, sell, or create derivative works from those materials."},
+              {"type": "paragraph", "text": "Telegram, Apple, and third-party names and marks belong to their respective owners. Telescan is not endorsed by Telegram or Apple unless those companies expressly state otherwise."}
+            ]
+          },
+          {
+            "id": "availability",
+            "title": "Availability and warranties",
+            "blocks": [
+              {"type": "paragraph", "text": "The service may change, be suspended, or stop operating. To the maximum extent permitted by law, Telescan is provided **as is** and **as available**, without guarantees of uninterrupted availability, compatibility, accuracy, security, or fitness for a particular purpose. Mandatory consumer rights remain unaffected."}
+            ]
+          },
+          {
+            "id": "liability",
+            "title": "Limitation of liability",
+            "blocks": [
+              {"type": "paragraph", "text": "To the maximum extent permitted by law, Telescan's developer and maintainers are not liable for indirect, incidental, special, or consequential loss arising from use of or inability to use the service. Liability that cannot legally be excluded remains limited only to the extent permitted by applicable law."}
+            ]
+          },
+          {
+            "id": "changes-and-contact",
+            "title": "Changes and contact",
+            "blocks": [
+              {"type": "paragraph", "text": "These Terms may be updated when the service or legal requirements change. Material changes will be presented through an appropriate service or documentation update. The effective date and published legal content hash identify the current version."},
+              {"type": "paragraph", "text": "Questions: [admin@tgtelescan.ru](mailto:admin@tgtelescan.ru)."}
+            ]
+          }
+        ]
+      },
+      "ru": {
+        "title": "Условия использования",
+        "summary": "Условия использования приложения Telescan, Telegram-ботов, API и связанных сервисов.",
+        "effective_date": "2026-09-01",
+        "effective_label": "Действуют с 1 сентября 2026 года",
+        "canonical_url": "https://tgtelescan.ru/terms?lang=ru",
+        "sections": [
+          {
+            "id": "agreement",
+            "title": "Согласие с условиями",
+            "blocks": [
+              {"type": "paragraph", "text": "Эти Условия регулируют использование приложения Telescan для iOS, Telegram-ботов, API и связанных сервисов. Используя Telescan, вы принимаете Условия и [Политику конфиденциальности](https://tgtelescan.ru/privacy?lang=ru). Если вы не согласны, не используйте Telescan."}
+            ]
+          },
+          {
+            "id": "service",
+            "title": "Сервис",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan помогает пользователям рядом находить и открывать публичные профили Telegram, которыми их владельцы решили поделиться. Bluetooth Low Energy используется для поиска. Интернет требуется для регистрации, входа с Apple, привязки Telegram, загрузки профилей, управления фотографиями, жалоб, блокировок, выхода и удаления аккаунта."},
+              {"type": "paragraph", "text": "Telescan является экспериментальным сервисом. Видимость Bluetooth и оценка расстояния могут запаздывать, быть неполными, повторёнными или неточными. Не используйте Telescan для безопасности, навигации, экстренной помощи, проверки личности или решений, требующих точного расстояния."}
+            ]
+          },
+          {
+            "id": "account-and-content",
+            "title": "Ваш аккаунт и контент",
+            "blocks": [
+              {"type": "paragraph", "text": "Вы должны иметь право использовать сервисы Apple, Telegram и Telescan по применимым законам и правилам платформ. Вы отвечаете за устройства, аккаунты, данные профиля, BIO и загруженные фотографии. Публикуйте только контент, на использование которого у вас есть права."},
+              {"type": "paragraph", "text": "Telescan ID передаётся устройствам рядом только при включённой видимости. Авторизованный пользователь, который уже знает этот идентификатор, может запросить опубликованный профиль, а радиоданные могут быть перехвачены или повторены устройствами в зоне сигнала."}
+            ]
+          },
+          {
+            "id": "reports-and-blocks",
+            "title": "Жалобы и блокировки",
+            "blocks": [
+              {"type": "paragraph", "text": "Можно пожаловаться на профиль или заблокировать его. Жалобы должны подаваться добросовестно, содержать только относящуюся к возможному нарушению информацию и могут включать необязательный комментарий. Жалоба не гарантирует конкретного решения или срока ответа. Блокировка скрывает доступ к профилям в обоих направлениях до её отмены."}
+            ]
+          },
+          {
+            "id": "acceptable-use",
+            "title": "Допустимое использование",
+            "blocks": [
+              {"type": "paragraph", "text": "Запрещено использовать Telescan, чтобы:"},
+              {"type": "list", "items": ["Преследовать, запугивать, выдавать себя за другого, обманывать или причинять вред", "Собирать, публиковать или неправомерно использовать чужую информацию", "Загружать незаконный контент или нарушать чужие права", "Отправлять заведомо ложные, оскорбительные или ответные жалобы", "Исследовать, нарушать, перегружать или обходить защиту сервиса", "Использовать автоматизацию или обратную разработку с нарушением закона или правил платформ"]},
+              {"type": "paragraph", "text": "Доступ может быть ограничен, когда это обоснованно необходимо для защиты пользователей и сервиса, расследования злоупотреблений или соблюдения закона."}
+            ]
+          },
+          {
+            "id": "third-parties",
+            "title": "Сторонние сервисы",
+            "blocks": [
+              {"type": "paragraph", "text": "Telescan зависит от Telegram, платформ Apple, поставщиков сети, хостинга, хранилищ и другой инфраструктуры. Их доступность и условия являются отдельными от наших."},
+              {"type": "paragraph", "text": "Приложение из App Store также подчиняется [стандартному лицензионному соглашению Apple](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/), если Apple или поставщик не установил другое применимое соглашение."}
+            ]
+          },
+          {
+            "id": "intellectual-property",
+            "title": "Интеллектуальная собственность",
+            "blocks": [
+              {"type": "paragraph", "text": "Программное обеспечение, документация, бренд, визуальный стиль и материалы сервиса Telescan являются собственностью правообладателей, если отдельное уведомление не устанавливает иное. Использование сервиса не передаёт право собственности и не разрешает копировать, изменять, публиковать, распространять, сублицензировать, продавать или создавать производные материалы."},
+              {"type": "paragraph", "text": "Названия и знаки Telegram, Apple и третьих лиц принадлежат их владельцам. Telescan не является продуктом Telegram или Apple, если эти компании прямо не заявили обратное."}
+            ]
+          },
+          {
+            "id": "availability",
+            "title": "Доступность и гарантии",
+            "blocks": [
+              {"type": "paragraph", "text": "Сервис может измениться, быть приостановлен или прекратить работу. В максимально разрешённой законом степени Telescan предоставляется **как есть** и **по мере доступности**, без гарантий бесперебойной работы, совместимости, точности, безопасности или пригодности для конкретной цели. Обязательные права потребителей сохраняются."}
+            ]
+          },
+          {
+            "id": "liability",
+            "title": "Ограничение ответственности",
+            "blocks": [
+              {"type": "paragraph", "text": "В максимально разрешённой законом степени разработчик и сопровождающие Telescan лица не отвечают за косвенные, случайные, специальные или последующие убытки из-за использования или невозможности использовать сервис. Ответственность, которую нельзя исключить, ограничивается только в разрешённой законом степени."}
+            ]
+          },
+          {
+            "id": "changes-and-contact",
+            "title": "Изменения и контакты",
+            "blocks": [
+              {"type": "paragraph", "text": "Условия могут обновляться при изменении сервиса или требований закона. О существенных изменениях будет сообщено через сервис или документацию. Дата вступления в силу и опубликованный hash legal-контента обозначают текущую версию."},
+              {"type": "paragraph", "text": "Вопросы: [admin@tgtelescan.ru](mailto:admin@tgtelescan.ru)."}
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

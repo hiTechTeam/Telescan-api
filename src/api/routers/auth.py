@@ -105,7 +105,8 @@ async def logout_current_session(
     auth: Annotated[AuthContext, Depends(get_current_auth)],
     container: Annotated[Container, Depends(get_container)],
 ) -> Response:
-    await container.sessions.revoke(auth.session_id, datetime.now(UTC))
+    async with container.account_operation_guard.admit(auth.user_id):
+        await container.sessions.revoke(auth.session_id, datetime.now(UTC))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

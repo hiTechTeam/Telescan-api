@@ -35,9 +35,14 @@ class LinkCodeService:
 class LegacyCodePublisher:
     """Narrow, feature-flagged bridge for the already released pre-token app."""
 
-    def __init__(self, repository: LegacyCodeRepositoryPort, enabled: bool) -> None:
+    def __init__(
+        self,
+        repository: LegacyCodeRepositoryPort,
+        enabled: bool,
+        production: bool = False,
+    ) -> None:
         self._repository = repository
-        self._enabled = enabled
+        self._enabled = enabled and not production
 
     async def publish(self, user_id: str, clear_code: str) -> None:
         if not self._enabled:

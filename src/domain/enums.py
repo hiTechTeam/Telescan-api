@@ -37,3 +37,24 @@ class ReportStatus(StrEnum):
     REVIEWING = "reviewing"
     RESOLVED = "resolved"
     DISMISSED = "dismissed"
+
+
+class AccountMergeStatus(StrEnum):
+    PREPARED = "prepared"
+    MIGRATING = "migrating"
+    MONGO_COMPLETE = "mongo_complete"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class AccountDeletionStatus(StrEnum):
+    PREPARED = "prepared"
+    DB_COMPLETE = "db_complete"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class ReportPhotoEvidenceStatus(StrEnum):
+    AVAILABLE = "available"
+    ABSENT = "absent"
+    COPY_FAILED = "copy_failed"

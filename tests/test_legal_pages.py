@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 from starlette.requests import Request
 
-from src.api.presentation.legal import resolve_language
+from src.api.presentation.legal import (
+    LEGAL_SOURCE_SHA256,
+    LEGAL_VERSION,
+    resolve_language,
+)
 from src.api.routers.legal import privacy_policy, terms_of_service
 
 
@@ -35,7 +39,10 @@ async def test_privacy_page_is_public_html() -> None:
     assert "optional BIO of up to 36 characters" in body
     assert "removed after 24 hours" in body
     assert "Saved profiles are not uploaded" in body
-    assert "one universal report" in body
+    assert "optional comment of up to 500 characters" in body
+    assert "separate moderation-evidence object" in body
+    assert "at most one active code" in body
+    assert "raw or unresolved Bluetooth identifier" in body
     assert "limited to 500 profiles" not in body
     assert "reason, optional comment" not in body
     assert "supporting service providers" in body
@@ -52,6 +59,9 @@ async def test_privacy_page_is_public_html() -> None:
     assert "'unsafe-inline'" not in response.headers["content-security-policy"]
     assert "img-src 'self' data:" in response.headers["content-security-policy"]
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+    assert response.headers["x-telescan-legal-version"] == LEGAL_VERSION
+    assert response.headers["x-telescan-legal-hash"] == LEGAL_SOURCE_SHA256
+    assert f'name="telescan-legal-hash" content="{LEGAL_SOURCE_SHA256}"' in body
 
 
 @pytest.mark.asyncio
@@ -63,9 +73,11 @@ async def test_terms_page_supports_russian_query() -> None:
     assert response.headers["content-language"] == "ru"
     assert '<html lang="ru">' in body
     assert "Условия использования" in body
-    assert "Действуют с 24 августа 2026 года" in body
+    assert "Действуют с 1 сентября 2026 года" in body
     assert "BIO" in body
-    assert "поставщиков сетевой и серверной инфраструктуры" in body
+    assert "поставщиков сети, хостинга, хранилищ" in body
+    assert "Интеллектуальная собственность" in body
+    assert "не гарантирует конкретного решения или срока ответа" in body
     assert "WireGuard" not in body
     assert "/privacy?lang=ru" in body
     assert "Правила использования Telescan" not in body
@@ -84,8 +96,10 @@ async def test_accept_language_selects_supported_language() -> None:
     assert response.headers["content-language"] == "ru"
     assert "Политика конфиденциальности" in body
     assert "удаляется через 24 часа" in body
-    assert "не синхронизируются между устройствами" in body
-    assert "универсальную жалобу" in body
+    assert "не синхронизируется" in body
+    assert "необязательный комментарий до 500 символов" in body
+    assert "не создаёт уведомление о встрече" in body
+    assert "отдельный объект доказательств модерации" in body
     assert "ограничена 500 профилями" not in body
     assert "Понятно о ваших данных" not in body
 

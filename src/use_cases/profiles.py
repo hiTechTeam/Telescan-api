@@ -1,18 +1,14 @@
 import logging
-from datetime import UTC, datetime
 from uuid import UUID
 
 from src.domain.errors import UserNotFound
 from src.domain.ports import (
     AppleIdentityRepositoryPort,
     BlockRepositoryPort,
-    ConfirmationRepositoryPort,
-    LinkCodeRepositoryPort,
-    ReviewCodeRepositoryPort,
-    ReportRepositoryPort,
-    SessionRepositoryPort,
     UserRepositoryPort,
 )
+from src.services.account_deletions import AccountDeletionService
+from src.services.account_operations import AccountOperationGuard
 from src.services.photos import PhotoService
 
 
@@ -60,23 +56,46 @@ class GetPublicProfile:
 
 
 class UpdateOwnBio:
-    def __init__(self, users: UserRepositoryPort) -> None:
+    def __init__(
+        self,
+        users: UserRepositoryPort,
+        account_operations: AccountOperationGuard | None = None,
+    ) -> None:
         self._users = users
+        self._account_operations = account_operations
 
     async def execute(self, user_id: str, bio: str | None) -> object:
-        user = await self._users.get_by_id(user_id)
-        if user is None:
-            raise UserNotFound()
         normalized = " ".join(bio.split()) if bio is not None else None
-        return await self._users.update_bio(user_id, normalized or None)
+        if self._account_operations is None:
+            user = await self._users.get_by_id(user_id)
+            if user is None:
+                raise UserNotFound()
+            return await self._users.update_bio(user_id, normalized or None)
+        async with self._account_operations.admit(user_id):
+            user = await self._users.get_by_id(user_id)
+            if user is None:
+                raise UserNotFound()
+            return await self._users.update_bio(user_id, normalized or None)
 
 
 class UpdateOwnPhoto:
-    def __init__(self, users: UserRepositoryPort, photos: PhotoService) -> None:
+    def __init__(
+        self,
+        users: UserRepositoryPort,
+        photos: PhotoService,
+        account_operations: AccountOperationGuard | None = None,
+    ) -> None:
         self._users = users
         self._photos = photos
+        self._account_operations = account_operations
 
     async def replace(self, user_id: str, photo: bytes) -> object:
+        if self._account_operations is None:
+            return await self._replace_locked(user_id, photo)
+        async with self._account_operations.admit(user_id):
+            return await self._replace_locked(user_id, photo)
+
+    async def _replace_locked(self, user_id: str, photo: bytes) -> object:
         user = await self._users.get_by_id(user_id)
         if user is None:
             raise UserNotFound()
@@ -105,6 +124,12 @@ class UpdateOwnPhoto:
         return updated
 
     async def delete(self, user_id: str) -> object:
+        if self._account_operations is None:
+            return await self._delete_locked(user_id)
+        async with self._account_operations.admit(user_id):
+            return await self._delete_locked(user_id)
+
+    async def _delete_locked(self, user_id: str) -> object:
         user = await self._users.get_by_id(user_id)
         if user is None:
             raise UserNotFound()
@@ -115,45 +140,8 @@ class UpdateOwnPhoto:
 
 
 class DeleteAccount:
-    def __init__(
-        self,
-        users: UserRepositoryPort,
-        link_codes: LinkCodeRepositoryPort,
-        sessions: SessionRepositoryPort,
-        confirmations: ConfirmationRepositoryPort,
-        reports: ReportRepositoryPort,
-        blocks: BlockRepositoryPort,
-        photos: PhotoService,
-        review_codes: ReviewCodeRepositoryPort | None = None,
-        apple_identities: AppleIdentityRepositoryPort | None = None,
-    ) -> None:
-        self._users = users
-        self._link_codes = link_codes
-        self._sessions = sessions
-        self._confirmations = confirmations
-        self._reports = reports
-        self._blocks = blocks
-        self._photos = photos
-        self._review_codes = review_codes
-        self._apple_identities = apple_identities
+    def __init__(self, deletions: AccountDeletionService) -> None:
+        self._deletions = deletions
 
     async def execute(self, user_id: str) -> None:
-        user = await self._users.get_by_id(user_id)
-        if user is None:
-            raise UserNotFound()
-        now = datetime.now(UTC)
-        # Revocation is first so a partial storage failure never leaves a usable session.
-        await self._sessions.revoke_all(user_id, now)
-        await self._photos.delete_all(
-            getattr(user, "telescan_id"), getattr(user, "photo_s3_link", None)
-        )
-        await self._link_codes.delete_for_user(user_id)
-        if self._review_codes is not None:
-            await self._review_codes.delete_for_user(user_id)
-        await self._confirmations.delete_for_user(user_id)
-        await self._blocks.delete_for_user(user_id)
-        await self._reports.anonymize_user(user_id)
-        await self._sessions.delete_for_user(user_id)
-        if self._apple_identities is not None:
-            await self._apple_identities.delete_for_user(user_id)
-        await self._users.delete(user_id)
+        await self._deletions.delete(user_id)

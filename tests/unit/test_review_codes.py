@@ -121,6 +121,7 @@ def test_production_requires_a_dedicated_review_secret() -> None:
         "bot_service_secret": "b" * 32,
         "moderation_service_secret": "m" * 32,
         "cors_origins": ["https://tgtelescan.ru"],
+        "require_moderation_revision": True,
     }
 
     with pytest.raises(ValueError, match="explicitly configured"):

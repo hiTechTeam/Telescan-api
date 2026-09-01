@@ -1,0 +1,111 @@
+name: Remove legacy user codes
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type REMOVE_LEGACY_CODES after the rollback window closes
+        required: true
+        type: string
+
+concurrency:
+  group: production-telescan-api-destructive-cleanup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  remove:
+    name: Audited post-rollout cleanup
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      inputs.confirmation == 'REMOVE_LEGACY_CODES'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Remove legacy hashes after verified backup
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" <<'REMOTE'
+          set -Eeuo pipefail
+          cd /home/ubuntu/telescan/Telescan-api
+          exec 9>/tmp/telescan-production-deploy.lock
+          flock --exclusive --timeout 1800 9
+          exec 8>/tmp/telescan-mongodb-maintenance.lock
+          flock --exclusive --timeout 1800 8
+
+          test -s .env
+          docker compose config --quiet </dev/null
+          test "$(docker compose ps -q telescan-api </dev/null | wc -l | tr -d ' ')" = "1"
+          test "$(docker inspect --format '{{.State.Health.Status}}' \
+            "$(docker compose ps -q telescan-api </dev/null)")" = "healthy"
+
+          sudo systemctl start telescan-mongodb-backup.service
+          test "$(systemctl show telescan-mongodb-backup.service --property=Result --value)" = "success"
+          test "$(systemctl show telescan-mongodb-backup.service --property=ExecMainStatus --value)" = "0"
+
+          docker compose exec -T telescan-api \
+            /app/.venv/bin/python -m scripts.migrate_users \
+            --remove-legacy-codes </dev/null
+
+          restart_api() {
+            exit_status=$?
+            trap - EXIT
+            set +e
+            docker compose up -d --no-deps telescan-api </dev/null
+            container_id="$(docker compose ps -q telescan-api </dev/null)"
+            recovered=false
+            if [ -n "$container_id" ]; then
+              for attempt in {1..20}; do
+                if [ "$(docker inspect --format '{{.State.Health.Status}}' \
+                  "$container_id" 2>/dev/null)" = "healthy" ]; then
+                  recovered=true
+                  break
+                fi
+                sleep 5
+              done
+            fi
+            if [ "$recovered" != true ]; then
+              echo "CRITICAL: API did not recover after legacy-code cleanup" >&2
+              exit 1
+            fi
+            exit "$exit_status"
+          }
+          trap restart_api EXIT
+
+          docker compose stop --timeout 30 telescan-api </dev/null
+          test -z "$(docker compose ps -q telescan-api </dev/null)"
+          docker compose run --rm --no-deps -T telescan-api \
+            /app/.venv/bin/python -m scripts.migrate_users \
+            --apply --remove-legacy-codes --confirm REMOVE_LEGACY_CODES \
+            </dev/null
+          docker compose up -d --no-deps telescan-api </dev/null
+          container_id="$(docker compose ps -q telescan-api </dev/null)"
+          for attempt in {1..20}; do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' \
+              "$container_id" 2>/dev/null)" = "healthy" ]; then
+              break
+            fi
+            sleep 5
+          done
+          test "$(docker inspect --format '{{.State.Health.Status}}' \
+            "$container_id" 2>/dev/null)" = "healthy"
+          docker compose exec -T telescan-api \
+            /app/.venv/bin/python -m scripts.audit_data_invariants --strict \
+            </dev/null
+          trap - EXIT
+          REMOTE

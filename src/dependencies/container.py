@@ -9,6 +9,9 @@ from src.infrastructure.jwt import TokenService
 from src.infrastructure.rate_limit import MongoRateLimiter, RateLimiter
 from src.infrastructure.s3 import S3PhotoStorage
 from src.repositories import (
+    AccountDeletionRepository,
+    AccountMergeRepository,
+    AccountOperationFenceRepository,
     AppleIdentityRepository,
     BlockRepository,
     ConfirmationRepository,
@@ -20,10 +23,19 @@ from src.repositories import (
 )
 from src.repositories.legacy import LegacyRepository
 from src.services import (
+    AccountDeletionService,
+    AccountMergeService,
+    AccountOperationGuard,
     LegacyCodePublisher,
     LinkCodeService,
     PhotoService,
+    ReportEvidenceService,
     SessionService,
+)
+from src.services.report_evidence import EVIDENCE_WORKER_MARKER
+from src.services.account_operation_intents import (
+    FileAccountOperationIntentStore,
+    InMemoryAccountOperationIntentStore,
 )
 from src.use_cases.auth import (
     LinkDevice,
@@ -63,6 +75,13 @@ class Container:
     settings: Settings
     users: UserRepository
     apple_identities: AppleIdentityRepository
+    account_merges: AccountMergeRepository
+    account_deletions: AccountDeletionRepository
+    account_operation_fences: AccountOperationFenceRepository
+    account_operation_guard: AccountOperationGuard
+    account_merge_service: AccountMergeService
+    account_deletion_service: AccountDeletionService
+    report_evidence: ReportEvidenceService
     sessions: SessionRepository
     tokens: TokenService
     rate_limiter: RateLimiter
@@ -118,7 +137,32 @@ def build_container(settings: Settings) -> Container:
         settings.s3_bucket_name,
     )
     photos = PhotoService(storage, settings.max_photo_bytes)
-    session_service = SessionService(sessions, token_service)
+    account_operation_fences = AccountOperationFenceRepository()
+    account_operation_intents = (
+        FileAccountOperationIntentStore()
+        if settings.environment.lower() == "production"
+        else InMemoryAccountOperationIntentStore()
+    )
+    account_operation_guard = AccountOperationGuard(
+        account_operation_fences,
+        account_operation_intents,
+    )
+    account_merges = AccountMergeRepository(account_operation_fences)
+    account_merge_service = AccountMergeService(
+        account_merges, users, photos, account_operation_guard
+    )
+    account_deletions = AccountDeletionRepository(account_operation_fences)
+    account_deletion_service = AccountDeletionService(
+        account_deletions, users, photos, account_operation_guard
+    )
+    report_evidence = ReportEvidenceService(
+        reports,
+        photos,
+        EVIDENCE_WORKER_MARKER
+        if settings.environment.lower() == "production"
+        else None,
+    )
+    session_service = SessionService(sessions, token_service, account_operation_guard)
     apple_verifier = AppleIdentityVerifier(
         settings.apple_bundle_id, settings.apple_keys_timeout_seconds
     )
@@ -127,22 +171,19 @@ def build_container(settings: Settings) -> Container:
         settings.bot_service_secret,
         settings.internal_request_timeout_seconds,
     )
-    update_own_photo = UpdateOwnPhoto(users, photos)
-    delete_account = DeleteAccount(
-        users,
-        link_codes,
-        sessions,
-        confirmations,
-        reports,
-        blocks,
-        photos,
-        review_codes,
-        apple_identities,
-    )
+    update_own_photo = UpdateOwnPhoto(users, photos, account_operation_guard)
+    delete_account = DeleteAccount(account_deletion_service)
     return Container(
         settings=settings,
         users=users,
         apple_identities=apple_identities,
+        account_merges=account_merges,
+        account_deletions=account_deletions,
+        account_operation_fences=account_operation_fences,
+        account_operation_guard=account_operation_guard,
+        account_merge_service=account_merge_service,
+        account_deletion_service=account_deletion_service,
+        report_evidence=report_evidence,
         sessions=sessions,
         tokens=token_service,
         rate_limiter=MongoRateLimiter(),
@@ -152,7 +193,12 @@ def build_container(settings: Settings) -> Container:
             code_service,
             photos,
             settings.link_code_ttl_seconds,
-            LegacyCodePublisher(legacy_repository, settings.legacy_api_active),
+            LegacyCodePublisher(
+                legacy_repository,
+                settings.legacy_api_active,
+                production=settings.environment.lower() == "production",
+            ),
+            account_operation_guard,
         ),
         sign_in_with_apple=SignInWithApple(
             users,
@@ -161,6 +207,7 @@ def build_container(settings: Settings) -> Container:
             sessions,
             session_service,
             settings.refresh_token_ttl_seconds,
+            account_operation_guard,
         ),
         link_device=LinkDevice(
             users,
@@ -171,6 +218,7 @@ def build_container(settings: Settings) -> Container:
             settings.refresh_token_ttl_seconds,
             review_codes,
             review_code_service,
+            account_operation_guard,
         ),
         link_telegram=LinkTelegramAccount(
             users,
@@ -181,13 +229,26 @@ def build_container(settings: Settings) -> Container:
             code_service,
             review_codes,
             review_code_service,
+            account_merge_service,
+            account_operation_guard,
         ),
         refresh_session=RefreshSession(session_service),
         request_logout_all=RequestLogoutAll(
-            users, confirmations, bot, settings.confirmation_ttl_seconds
+            users,
+            confirmations,
+            bot,
+            settings.confirmation_ttl_seconds,
+            account_operation_guard,
         ),
-        get_confirmation_status=GetConfirmationStatus(confirmations),
-        decide_confirmation=DecideConfirmation(users, confirmations, sessions),
+        get_confirmation_status=GetConfirmationStatus(
+            confirmations, account_operation_guard
+        ),
+        decide_confirmation=DecideConfirmation(
+            users,
+            confirmations,
+            sessions,
+            account_operation_guard,
+        ),
         list_pending_confirmations=ListPendingConfirmations(confirmations),
         register_confirmation_message=RegisterConfirmationMessage(confirmations),
         get_own_profile=GetOwnProfile(users),
@@ -196,16 +257,21 @@ def build_container(settings: Settings) -> Container:
             blocks,
             None if settings.legacy_api_active else apple_identities,
         ),
-        update_own_bio=UpdateOwnBio(users),
+        update_own_bio=UpdateOwnBio(users, account_operation_guard),
         update_own_photo=update_own_photo,
         delete_account=delete_account,
-        submit_report=SubmitReport(users, reports),
-        block_user=BlockUser(users, blocks),
-        unblock_user=UnblockUser(blocks),
+        submit_report=SubmitReport(
+            users, reports, report_evidence, account_operation_guard
+        ),
+        block_user=BlockUser(users, blocks, account_operation_guard),
+        unblock_user=UnblockUser(users, blocks, account_operation_guard),
         list_blocked_users=ListBlockedUsers(blocks),
         list_reports=ListReports(reports),
         get_report=GetReport(reports),
-        update_report_status=UpdateReportStatus(reports),
+        update_report_status=UpdateReportStatus(
+            reports,
+            revision_required=settings.require_moderation_revision,
+        ),
         legacy=LegacyCompatibility(
             legacy_repository, users, update_own_photo, delete_account
         ),

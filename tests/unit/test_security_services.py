@@ -35,6 +35,11 @@ async def test_legacy_code_bridge_is_explicit_and_stores_only_sha256() -> None:
         "1635c8525afbae58c37bede3c9440844e9143727cc7c160bed665ec378d8a262",
     )
 
+    repository.set_code_hash.reset_mock()
+    production = LegacyCodePublisher(repository, enabled=True, production=True)
+    await production.publish("user-1", "abcd1234")
+    repository.set_code_hash.assert_not_awaited()
+
 
 @pytest.mark.asyncio
 async def test_refresh_rotates_and_reuse_revokes_session() -> None:

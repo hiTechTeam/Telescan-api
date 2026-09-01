@@ -7,10 +7,19 @@ replaceable in tests.
 
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlsplit
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _is_placeholder(value: str) -> bool:
+    normalized = value.strip().lower()
+    return (
+        not normalized
+        or normalized.startswith(("development-", "replace-", "change-me"))
+        or normalized in {"password", "secret", "changeme"}
+    )
 
 
 class Settings(BaseSettings):
@@ -53,9 +62,13 @@ class Settings(BaseSettings):
 
     bot_internal_base_url: str = "http://telescan-bot-app:8080"
     internal_request_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    maintenance_interval_seconds: int = Field(default=60, ge=10, le=3600)
     cors_origins: list[str] = Field(default_factory=list)
     enable_legacy_api: bool = False
     legacy_api_expires_at: datetime | None = None
+    production_legacy_risk_accepted: bool = False
+    require_moderation_revision: bool = False
+    moderation_revision_compatibility_expires_at: datetime | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -87,21 +100,29 @@ class Settings(BaseSettings):
         if self.environment.lower() != "production":
             return self
         if self.enable_legacy_api:
-            expires_at = self.legacy_api_expires_at
-            if expires_at is None or expires_at.tzinfo is None:
+            raise ValueError("The legacy API is forbidden in production")
+        if not self.require_moderation_revision:
+            compatibility_until = self.moderation_revision_compatibility_expires_at
+            if compatibility_until is None or compatibility_until.tzinfo is None:
                 raise ValueError(
-                    "LEGACY_API_EXPIRES_AT must be timezone-aware when legacy API is enabled"
+                    "Production moderation CAS requires a revision or an explicit "
+                    "compatibility deadline"
                 )
-            if expires_at.astimezone(UTC) - datetime.now(UTC) > timedelta(days=14):
+            remaining = compatibility_until.astimezone(UTC) - datetime.now(UTC)
+            if remaining <= timedelta(0) or remaining > timedelta(days=7):
                 raise ValueError(
-                    "Legacy API compatibility window cannot exceed 14 days"
+                    "Moderation revision compatibility window must be active and "
+                    "cannot exceed 7 days"
                 )
-        insecure = (
-            self.jwt_secret.startswith("development-"),
-            self.link_code_hmac_secret.startswith("development-"),
-            self.review_code_hmac_secret.startswith("development-"),
-            self.bot_service_secret.startswith("development-"),
-            self.moderation_service_secret.startswith("development-"),
+        insecure = tuple(
+            _is_placeholder(secret)
+            for secret in (
+                self.jwt_secret,
+                self.link_code_hmac_secret,
+                self.review_code_hmac_secret,
+                self.bot_service_secret,
+                self.moderation_service_secret,
+            )
         )
         if any(insecure):
             raise ValueError("Production secrets must be explicitly configured")
@@ -114,8 +135,88 @@ class Settings(BaseSettings):
         }
         if len(secrets) != 5:
             raise ValueError("Production secrets must be distinct")
-        if not self.cors_origins or "*" in self.cors_origins:
-            raise ValueError("CORS_ORIGINS must be an explicit production allow-list")
+        if "*" in self.cors_origins:
+            raise ValueError("CORS_ORIGINS may not contain a wildcard in production")
+        for origin in self.cors_origins:
+            parsed_origin = urlsplit(origin)
+            if (
+                parsed_origin.scheme != "https"
+                or not parsed_origin.hostname
+                or parsed_origin.username is not None
+                or parsed_origin.password is not None
+                or parsed_origin.path not in {"", "/"}
+                or parsed_origin.query
+                or parsed_origin.fragment
+            ):
+                raise ValueError(
+                    "CORS_ORIGINS entries must be credential-free HTTPS origins"
+                )
+        if self.mongo_host != "mongo" or self.mongo_port != 27017:
+            raise ValueError("Production MongoDB must use the private Docker route")
+        if self.mongo_dbname.lower() in {"admin", "config", "local"}:
+            raise ValueError("MONGO_DBNAME may not be a MongoDB system database")
+        if (
+            self.mongo_username.strip().lower()
+            in {"telescan", "root", "admin", "administrator"}
+            or _is_placeholder(self.mongo_username)
+            or _is_placeholder(self.mongo_password)
+            or len(self.mongo_password) < 24
+        ):
+            raise ValueError("Production MongoDB credentials must be explicit")
+        if (
+            any(
+                _is_placeholder(value)
+                for value in (self.s3_access_key, self.s3_secret_key)
+            )
+            or len(self.s3_access_key) < 16
+            or len(self.s3_secret_key) < 32
+        ):
+            raise ValueError("Production S3 credentials may not be placeholders")
+        for label, raw_url in (
+            ("S3_ENDPOINT_URL", self.s3_endpoint_url),
+            ("S3_PUBLIC_BASE_URL", self.s3_public_base_url),
+        ):
+            parsed = urlsplit(raw_url)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+            ):
+                raise ValueError(f"{label} must be a credential-free HTTPS origin")
+        endpoint_host = urlsplit(self.s3_endpoint_url).hostname
+        endpoint = urlsplit(self.s3_endpoint_url)
+        if (
+            endpoint_host != "s3.ru-7.storage.selcloud.ru"
+            or endpoint.port not in {None, 443}
+            or endpoint.path not in {"", "/"}
+            or endpoint.query
+            or endpoint.fragment
+        ):
+            raise ValueError("Production S3 endpoint is not an approved provider host")
+        if self.s3_bucket_name != "profile-photos-telescan":
+            raise ValueError("Production S3 bucket is not approved")
+        public_base = urlsplit(self.s3_public_base_url)
+        if (
+            public_base.hostname != f"{self.s3_bucket_name}.{endpoint_host}"
+            or public_base.port not in {None, 443}
+            or public_base.path not in {"", "/"}
+            or public_base.query
+            or public_base.fragment
+        ):
+            raise ValueError("Production S3 public base is not an approved host")
+        bot_url = urlsplit(self.bot_internal_base_url)
+        if (
+            bot_url.scheme != "http"
+            or bot_url.hostname != "telescan-bot-app"
+            or bot_url.port != 8080
+            or bot_url.username is not None
+            or bot_url.password is not None
+            or bot_url.path not in {"", "/"}
+        ):
+            raise ValueError(
+                "Production bot callback must use the private Docker origin"
+            )
         return self
 
 

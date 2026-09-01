@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 
 from src.dependencies.container import Container, get_container
 from src.dependencies.moderation import require_moderation_service
-from src.domain.enums import ReportStatus
+from src.domain.enums import ReportPhotoEvidenceStatus, ReportStatus
 from src.schemas.moderation import (
     ModerationDecisionRequest,
     ModerationReportResponse,
@@ -29,6 +29,11 @@ def _report(item: object) -> ModerationReportResponse:
         target_username=getattr(item, "target_username", None),
         target_bio=getattr(item, "target_bio", None),
         target_photo_url=getattr(item, "target_photo_url", None),
+        target_photo_evidence_status=getattr(
+            item,
+            "target_photo_evidence_status",
+            ReportPhotoEvidenceStatus.ABSENT,
+        ),
         status=getattr(item, "status"),
         created_at=getattr(item, "created_at"),
         updated_at=getattr(item, "updated_at"),
@@ -36,6 +41,8 @@ def _report(item: object) -> ModerationReportResponse:
         retention_until=getattr(item, "retention_until", None),
         moderator_id=getattr(item, "moderator_id", None),
         moderator_note=getattr(item, "moderator_note", None),
+        revision=getattr(item, "revision", 0),
+        moderation_history=getattr(item, "moderation_history", []),
     )
 
 
@@ -70,5 +77,7 @@ async def update_report(
         payload.status,
         payload.moderator_id,
         payload.note,
+        note_is_set="note" in payload.model_fields_set,
+        expected_revision=payload.revision,
     )
     return _report(item)

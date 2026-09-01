@@ -75,6 +75,12 @@ class SessionRepository:
                 {"$set": {"revoked_at": now}},
             )
 
+    async def delete(self, session_id: str) -> None:
+        if PydanticObjectId.is_valid(session_id):
+            await DeviceSessionDocument.get_pymongo_collection().delete_one(
+                {"_id": PydanticObjectId(session_id)}
+            )
+
     async def revoke_all(self, user_id: str, now: datetime) -> None:
         await DeviceSessionDocument.get_pymongo_collection().update_many(
             {"user_id": PydanticObjectId(user_id), "revoked_at": None},

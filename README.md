@@ -64,7 +64,10 @@ for a Telegram account.
 Only an HMAC-SHA-256 digest is stored in the `link_codes` collection. A new code
 revokes any earlier unused code for that account; a code expires after the
 configured 5–10 minute TTL (10 minutes by default), is consumed atomically, and
-can be used only once.
+can be used only once. The partial unique `uniq_issued_user` index is the final
+concurrency guard. A consumed digest and consuming device ID remain usable as
+merge-recovery proof for no more than 30 days, including when MongoDB TTL
+cleanup runs late.
 
 The bot explicitly reports whether the Telegram photo is present, absent, or
 temporarily unavailable. A present photo is copied to a new unique object URL,
@@ -77,6 +80,11 @@ The iOS app submits the clear code to an authenticated endpoint. Successful
 linking attaches the verified Telegram profile to the existing Apple-authenticated
 account and never creates a session by itself. Existing pre-migration Telegram
 profiles are adopted without changing their public Telescan ID, BIO, or photo.
+That Telegram profile is the canonical merge target. A durable account journal
+moves or deduplicates placeholder sessions, blocks, reports, the Apple identity,
+codes, and pending confirmations before the placeholder user and its S3 prefix
+are removed. Interrupted database or storage steps are resumed by the
+maintenance worker; a retry never removes the canonical target's photo.
 
 Sign in with Apple creates or replaces that device's session and returns:
 
@@ -93,7 +101,9 @@ immediately.
 App Review credentials use the separate `review_codes` collection and a
 dedicated HMAC secret. They remain scoped to one existing review profile, are
 single-use, share the normal link endpoint rate limits, and retain lifecycle
-metadata for 90 days after expiry. Issue them only from the production host:
+metadata for 90 days after expiry while unused or revoked. After successful
+use, the digest/device recovery proof is retained for at most 30 days. Issue
+them only from the production host:
 
 ```sh
 docker compose exec telescan-api /app/.venv/bin/python -m scripts.review_codes issue \
@@ -169,10 +179,10 @@ protected by
 | `GET` | `/internal/v1/moderation/reports/{id}` | Read a report and its captured profile snapshot |
 | `PATCH` | `/internal/v1/moderation/reports/{id}` | Record review state, moderator actor, and note |
 
-Legacy `/v1` routes are hidden from OpenAPI and are available only when
-`ENABLE_LEGACY_API=true` and the timezone-aware `LEGACY_API_EXPIRES_AT` is
-still in the future. Production rejects a compatibility window longer than 14
-days.
+Legacy `/v1` routes are hidden from OpenAPI. They may be enabled only in a
+non-production development environment with `ENABLE_LEGACY_API=true` and a
+future timezone-aware `LEGACY_API_EXPIRES_AT`; production rejects the flag
+unconditionally and never publishes a legacy `users.code` hash.
 
 The current iOS MVP does not expose logout-all; it offers current-device logout
 and account deletion. The logout-all endpoints and Telegram confirmation flow
@@ -184,12 +194,12 @@ rendering live in `src/api/presentation`, while the HTML shell is kept in
 
 ## Data ownership and deletion
 
-MongoDB contains nine application collections: `users`, `apple_identities`, `link_codes`,
-`review_codes`, `device_sessions`, `rate_limits`, `confirmation_requests`,
-`reports`, and `blocks`. Reports capture the reporter and target Telescan IDs,
-the universal report kind, optional context, target name, username, BIO and photo snapshot,
-moderation status, actor, and
-timestamps.
+MongoDB contains eleven application collections: `users`, `apple_identities`,
+`link_codes`, `review_codes`, `device_sessions`, `rate_limits`,
+`confirmation_requests`, `reports`, `blocks`, `account_merges`, and
+`account_deletions`. Reports capture the reporter and target Telescan IDs, the
+universal report kind, optional context, target name, username, BIO, moderation
+state, revision, event history, evidence state, actor, and timestamps.
 Blocks are unique per blocker/target pair and profile reads return `404` when
 either account has blocked the other. The API also owns the
 `users/{telescan_id}/...` photo prefix in S3-compatible storage.
@@ -205,12 +215,18 @@ then removes the obsolete object. A failed database write compensates by
 deleting the new unreferenced object, so the live profile never points to an
 object that was removed before the database update.
 
-Account deletion first revokes all sessions, then removes photos, regular and
-review link codes, confirmation requests, block relationships, device sessions,
-and finally the user record. Abuse reports are retained for moderation, but
-direct account relations are removed; resolved or dismissed reports expire
-through a 180-day TTL. A storage failure therefore cannot leave a usable
-authenticated session.
+Report creation attempts to copy the current live photo into the separate
+`moderation/reports/{report_id}/...` prefix and records `available`, `absent`, or
+`copy_failed`. Profile replacement and account deletion only clean the
+`users/{telescan_id}/...` prefix. Closed reports are terminal, receive a
+180-day `retention_until`, and are removed with their evidence by the retryable
+maintenance worker.
+
+Account deletion is also journaled. It revokes sessions first, then idempotently
+removes codes, confirmations, block relationships, identities, device sessions,
+and the user while anonymizing retained report relations. S3 cleanup is the
+final retryable step. Completed merge/deletion journals expire after 30 days;
+incomplete journals have no TTL and must be reconciled.
 
 The production rate limiter uses atomic fixed-window counters in MongoDB, so
 limits are shared by all API replicas. Counter keys are SHA-256 digests and old
@@ -222,13 +238,11 @@ remaining window in `Retry-After`.
 
 ## Migration from the legacy model
 
-`ENABLE_LEGACY_API=true` temporarily restores Telegram-code session creation
-for Personal Team Debug builds that cannot carry the Sign in with Apple
-entitlement. Set `LEGACY_API_EXPIRES_AT` to a timezone-aware ISO 8601 timestamp;
-after that instant the compatibility path and its sessions stop working without
-a restart. While active, profile discovery includes legacy profiles and repeated
-deployments do not revoke their sessions. Keep the flag disabled for the release
-Apple-first flow.
+`ENABLE_LEGACY_API=true` is a development-only escape hatch for Personal Team
+Debug builds that cannot carry the Sign in with Apple entitlement. Production
+startup always rejects it. Set `LEGACY_API_EXPIRES_AT` to a timezone-aware ISO
+8601 timestamp even in development; after that instant the compatibility path
+stops working without a restart.
 
 Before the first Apple-auth deployment, rebuild the Telegram unique index as a
 partial index so multiple authenticated accounts can exist before Telegram is
@@ -257,7 +271,10 @@ uv run python -m scripts.migrate_users --apply
 
 It fills missing `telescan_id`, `created_at`, and `updated_at` fields and reports
 duplicate Telegram IDs without deleting users or profile data. Removing the old
-`users.code` field is a separate post-rollout operation:
+`users.code` field is a separate destructive post-rollout operation. It must
+not run in the normal image rollout. After the old-image rollback window is
+explicitly closed, dispatch the protected `Remove legacy user codes` workflow
+with confirmation `REMOVE_LEGACY_CODES`. The equivalent maintenance command is:
 
 ```sh
 uv run python -m scripts.migrate_users \
@@ -279,17 +296,71 @@ uv run python -m scripts.migrate_universal_reports \
   --confirm MIGRATE_UNIVERSAL_REPORTS
 ```
 
-While the time-limited legacy API is active, newly issued codes are additionally
-published as legacy SHA-256 hashes for already released old clients. Disable
-legacy routes before removing those fields.
+Production already rejects `ENABLE_LEGACY_API=true`, so stale hashes cannot be
+used during the compatibility window. The separately audited cleanup takes a
+verified backup, stops the API, unsets the fields, restores readiness, and runs
+`scripts.audit_data_invariants --strict`; the audit prints aggregate counts
+only.
+
+The additional P0 migrations are dry-run by default and idempotent. Apply them
+while the API is stopped, after a verified backup:
+
+```sh
+uv run python -m scripts.migrate_link_code_invariants
+uv run python -m scripts.migrate_link_code_invariants \
+  --apply --confirm MIGRATE_LINK_CODE_INVARIANTS
+uv run python -m scripts.migrate_moderation_integrity
+uv run python -m scripts.migrate_moderation_integrity \
+  --apply --confirm MIGRATE_MODERATION_INTEGRITY
+uv run python -m scripts.migrate_account_operation_journals
+uv run python -m scripts.migrate_account_operation_journals \
+  --apply --confirm MIGRATE_ACCOUNT_OPERATION_JOURNALS
+uv run python -m scripts.audit_data_invariants --strict
+```
 
 ## Production boundary
 
-Production startup rejects built-in development secrets and requires an
-explicit, non-wildcard CORS allow-list. It connects to MongoDB through the
-least-privilege application account, not the MongoDB root account. Keep
+Production startup rejects empty, built-in, placeholder, reused, or incorrectly
+routed credentials. Native-only production may keep `CORS_ORIGINS=[]`; any
+configured origin must be a credential-free HTTPS origin and `*` is forbidden.
+MongoDB must be `mongo:27017` on the private network and use a non-system
+database with a strong least-privilege application credential. S3 is fixed to
+`https://s3.ru-7.storage.selcloud.ru`, bucket `profile-photos-telescan`, and the
+host-style public base
+`https://profile-photos-telescan.s3.ru-7.storage.selcloud.ru` with no path,
+query, or fragment. Keep
 `BOT_SERVICE_SECRET` and the separate `MODERATION_SERVICE_SECRET` private and
 block `/internal/` at every public proxy.
+
+Account merge/deletion correctness relies on an explicit single-active-process
+topology. Docker starts `main.py`, which pins Uvicorn to one worker; Compose
+pins the service to one replica and a fixed container name; deployment stops
+the old container and verifies zero instances before starting exactly one new
+healthy instance. Do not run `uvicorn --workers`, scale the Compose service, or
+introduce rolling overlap without replacing the in-process account locks with
+a distributed admission protocol. The host directory
+`/home/ubuntu/telescan/.runtime/Telescan-api` is owned by UID/GID `10001`, mode
+`0750`, and bind-mounted with `create_host_path: false`. Its
+`production-instance.lock` is a stable, non-symlink, single-link inode owned by
+`10001:10001` with mode `0600`; never replace or unlink it during deployment.
+The FastAPI lifespan takes a non-blocking kernel lock there, so alternate ASGI
+launchers cannot bypass the singleton.
+
+Before writing a merge/deletion journal, the process atomically fsyncs a
+short-lived operation intent under the same host runtime. The intent contains a
+stable journal ID and the minimum recovery payload. On startup, FastAPI restores
+admission poison, deterministically materializes any journal missing after a
+crash, reinstalls all durable fences, and only then accepts traffic. Intent files
+and their directory are owner-checked and mode-checked. A production deployment
+must not open ingress while one of these host intents remains pending.
+
+For a backward-compatible moderation rollout, first deploy the additive API
+with `REQUIRE_MODERATION_REVISION=false` and a timezone-aware
+`MODERATION_REVISION_COMPATIBILITY_EXPIRES_AT` no more than seven days ahead.
+Then deploy the admin bot that sends `revision`, set
+`REQUIRE_MODERATION_REVISION=true`, clear the deadline, and redeploy the API.
+Missing revisions are then rejected with `409`. Never extend the compatibility
+window as a permanent bypass.
 
 Production requests to `api.tgtelescan.ru` terminate TLS on the Netherlands EU
 relay, cross an encrypted WireGuard link to the Moscow nginx origin, and then
@@ -304,15 +375,38 @@ localhost binding and an SSH tunnel documented in
 
 ## Repository workflow
 
-Pull requests and pushes to `main` run Ruff, Pyright, pytest, and a Docker
-build. A successful push to `main` creates and verifies an encrypted off-host
-database backup, builds the new image while the current API remains available,
-runs the idempotent Apple-auth migration during a short API stop, deploys
-through the production environment, and waits for the readiness health check.
-The workflow preserves the previous image and automatically recreates it when
-migration, startup, or the new readiness check fails.
-Concurrency serializes production deployments so two API releases cannot
-update the host at the same time.
+Pull requests and pushes to `main` run Ruff, Pyright, pytest, legal-source
+equality, and a Docker build. A successful `main` deployment takes and verifies
+an encrypted off-host database backup, holds the host-wide production and
+MongoDB-maintenance locks, and uploads only to a new immutable release path. It
+then installs and fsyncs a durable deployment controller/intent and enables its
+systemd boot service plus online `.path` watcher before closing the nginx
+maintenance owner `api-deploy`. While public ingress returns `503`, the
+controller promotes the candidate config, runs only
+additive/backward-compatible migrations, proves exactly one healthy API process,
+checks both the strict data audit and loopback legal bytes, and verifies that no
+host account intent remains.
+
+Before the candidate can become public, a failed gate restores the complete
+previous config snapshot and protected image, re-runs local health/topology,
+audit, and legal checks, and only then reopens ingress. A fsynced
+`candidate_commit` phase is written immediately before opening ingress; from
+that point the old image is never restored. The moderation-evidence worker is
+held behind an owner/mode-checked host marker while rollback remains armed and
+is enabled only after this phase becomes durable; a legacy rollback therefore
+cannot orphan newly copied evidence. The controller verifies both public legal
+origins after opening. A public failure immediately re-closes the
+`api-deploy` marker, retains the candidate and durable `manual` phase, and
+requires operator review. A crash or SSH disconnect is recovered by the same
+versioned controller under the shared host lock; the nginx release watcher owns
+a different marker and cannot open an API-owned maintenance window.
+
+The schema migrations are deliberately additive or old-image compatible, but
+rollback is an emergency bridge, not a final state: the old API does not append
+new moderation events or run the new cleanup workers. After rollback, freeze
+moderation/account mutations, investigate the failed release, and either
+re-deploy the corrected new image or restore the verified pre-deploy backup
+under the database recovery runbook.
 
 Cross-service architecture, production operations, and security boundaries are
 maintained in the private

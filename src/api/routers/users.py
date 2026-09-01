@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 
-from src.dependencies.auth import get_current_auth
+from src.dependencies.auth import get_current_auth, get_current_auth_for_merge
 from src.dependencies.container import Container, get_container
 from src.domain.entities import AuthContext
 from src.schemas.auth import AccessTokenResponse, TelegramLinkRequest
@@ -47,7 +47,7 @@ async def get_me(
 @router.post("/telegram/link", response_model=TelegramLinkResponse)
 async def link_my_telegram(
     payload: TelegramLinkRequest,
-    auth: Annotated[AuthContext, Depends(get_current_auth)],
+    auth: Annotated[AuthContext, Depends(get_current_auth_for_merge)],
     container: Annotated[Container, Depends(get_container)],
 ) -> TelegramLinkResponse:
     await container.rate_limiter.check(

@@ -17,8 +17,9 @@ WORKDIR /app
 COPY . .
 
 RUN uv sync --frozen --no-dev \
-    && groupadd --system telescan \
-    && useradd --system --gid telescan --home-dir /app telescan \
+    && groupadd --gid 10001 telescan \
+    && useradd --uid 10001 --gid telescan --no-create-home \
+      --home-dir /app --shell /usr/sbin/nologin telescan \
     && chown -R telescan:telescan /app
 
 USER telescan

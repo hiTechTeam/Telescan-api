@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from beanie import PydanticObjectId
@@ -54,9 +54,36 @@ class LinkCodeRepository:
                     "consumed_at": now,
                     "consumed_by_device_id": device_id,
                 },
+                # Preserve the authorization proof long enough for merge
+                # reconciliation after an API outage.
+                "$max": {"expires_at": now + timedelta(days=30)},
                 "$inc": {"attempts": 1},
             },
             return_document=ReturnDocument.AFTER,
+        )
+        return LinkCodeDocument.model_validate(raw) if raw else None
+
+    async def find_for_link(
+        self,
+        code_hash: str,
+        device_id: UUID,
+        now: datetime,
+    ) -> LinkCodeDocument | None:
+        raw = await LinkCodeDocument.get_pymongo_collection().find_one(
+            {
+                "code_hash": code_hash,
+                "$or": [
+                    {
+                        "status": LinkCodeStatus.ISSUED,
+                        "expires_at": {"$gt": now},
+                    },
+                    {
+                        "status": LinkCodeStatus.CONSUMED,
+                        "consumed_by_device_id": device_id,
+                        "expires_at": {"$gt": now},
+                    },
+                ],
+            }
         )
         return LinkCodeDocument.model_validate(raw) if raw else None
 

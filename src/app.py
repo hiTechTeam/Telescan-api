@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -11,6 +12,7 @@ from src.api.routers import router as api_router
 from src.core.config import Settings, settings as default_settings
 from src.dependencies.container import Container, build_container
 from src.domain.errors import (
+    AccountOperationConflict,
     AppleIdentityConflict,
     ConfirmationNotFound,
     ExternalServiceUnavailable,
@@ -20,6 +22,7 @@ from src.domain.errors import (
     InvalidModerationAction,
     InvalidPhoto,
     InvalidToken,
+    ModerationConflict,
     ModerationItemNotFound,
     RateLimitExceeded,
     RefreshTokenReused,
@@ -29,6 +32,21 @@ from src.domain.errors import (
     UserNotFound,
 )
 from src.infrastructure.mongodb import close_database, init_database
+from src.runtime_topology import acquire_production_instance_lock
+
+
+logger = logging.getLogger(__name__)
+
+
+async def _maintenance_loop(container: Container, interval_seconds: int) -> None:
+    while True:
+        try:
+            await container.account_merge_service.process_incomplete()
+            await container.account_deletion_service.process_incomplete()
+            await container.report_evidence.run_once()
+        except Exception:
+            logger.exception("Background data-integrity maintenance failed")
+        await asyncio.sleep(interval_seconds)
 
 
 def create_app(
@@ -39,15 +57,40 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        if container is None:
-            await init_database(active_settings)
-            app.state.container = build_container(active_settings)
-        else:
-            app.state.container = container
-        logging.basicConfig(level=logging.INFO)
-        yield
-        if container is None:
-            await close_database()
+        maintenance_task: asyncio.Task[None] | None = None
+        database_initialized = False
+        instance_lock = acquire_production_instance_lock(active_settings.environment)
+        try:
+            if container is None:
+                await init_database(active_settings)
+                database_initialized = True
+                app.state.container = build_container(active_settings)
+                app.state.container.account_operation_guard.restore_durable_intents()
+                # Fail closed after a crash: every durable incomplete journal must
+                # have its account fence reinstalled before the ASGI lifespan
+                # yields and the socket can serve application traffic.
+                await app.state.container.account_merge_service.reconcile_startup()
+                await app.state.container.account_deletion_service.reconcile_startup()
+                await app.state.container.account_merge_service.process_incomplete(0)
+                await app.state.container.account_deletion_service.process_incomplete(0)
+                maintenance_task = asyncio.create_task(
+                    _maintenance_loop(
+                        app.state.container,
+                        active_settings.maintenance_interval_seconds,
+                    )
+                )
+            else:
+                app.state.container = container
+            logging.basicConfig(level=logging.INFO)
+            yield
+        finally:
+            if maintenance_task is not None:
+                maintenance_task.cancel()
+                await asyncio.gather(maintenance_task, return_exceptions=True)
+            if database_initialized:
+                await close_database()
+            if instance_lock is not None:
+                instance_lock.close()
 
     application = FastAPI(
         title="Telescan API",
@@ -97,6 +140,18 @@ def create_app(
             content={
                 "detail": "This identity is linked to another account",
                 "code": "identity_conflict",
+            },
+        )
+
+    @application.exception_handler(AccountOperationConflict)
+    async def account_operation_conflict(
+        _: Request, __: AccountOperationConflict
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "detail": "Another account operation is already in progress",
+                "code": "account_operation_conflict",
             },
         )
 
@@ -152,6 +207,16 @@ def create_app(
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": str(error)},
+        )
+
+    @application.exception_handler(ModerationConflict)
+    async def moderation_conflict(_: Request, __: ModerationConflict) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "detail": "Report changed; reload before updating",
+                "code": "moderation_conflict",
+            },
         )
 
     @application.exception_handler(RateLimitExceeded)

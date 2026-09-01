@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from beanie import PydanticObjectId
@@ -30,7 +30,11 @@ class ReviewCodeRepository:
                     "status": LinkCodeStatus.CONSUMED,
                     "consumed_at": now,
                     "consumed_by_device_id": device_id,
-                }
+                },
+                # Unused/revoked lifecycle metadata may be retained for the
+                # longer audit window, but a successful-use proof is bounded
+                # to 30 days from consumption.
+                "$min": {"retention_until": now + timedelta(days=30)},
             },
             return_document=ReturnDocument.AFTER,
         )
@@ -46,6 +50,30 @@ class ReviewCodeRepository:
             device_id,
         )
         return document
+
+    async def find_for_link(
+        self,
+        code_hash: str,
+        device_id: UUID,
+        now: datetime,
+    ) -> ReviewCodeDocument | None:
+        raw = await ReviewCodeDocument.get_pymongo_collection().find_one(
+            {
+                "code_hash": code_hash,
+                "$or": [
+                    {
+                        "status": LinkCodeStatus.ISSUED,
+                        "expires_at": {"$gt": now},
+                    },
+                    {
+                        "status": LinkCodeStatus.CONSUMED,
+                        "consumed_by_device_id": device_id,
+                        "retention_until": {"$gt": now},
+                    },
+                ],
+            }
+        )
+        return ReviewCodeDocument.model_validate(raw) if raw else None
 
     async def delete_for_user(self, user_id: str) -> None:
         await ReviewCodeDocument.find(

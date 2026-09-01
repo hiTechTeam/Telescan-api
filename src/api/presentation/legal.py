@@ -1,546 +1,152 @@
-"""Public, localized legal pages for Telescan."""
+"""Public legal pages rendered from the approved, vendored legal source."""
 
-from dataclasses import dataclass
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from datetime import date
 from functools import lru_cache
 from html import escape
 from pathlib import Path
 from string import Template
+from typing import Any
+from urllib.parse import urlparse
 
-__all__ = ["render_page", "resolve_language"]
+__all__ = [
+    "LEGAL_SOURCE_SHA256",
+    "LEGAL_VERSION",
+    "render_page",
+    "resolve_language",
+]
 
 
-@dataclass(frozen=True)
-class LegalDocument:
-    title: str
-    summary: str
-    effective_date: str
-    sections: tuple[tuple[str, str], ...]
+SOURCE_PATH = Path(__file__).with_name("legal_documents.json")
+SOURCE_BYTES = SOURCE_PATH.read_bytes()
+LEGAL_SOURCE_SHA256 = hashlib.sha256(SOURCE_BYTES).hexdigest()
+_SOURCE: dict[str, Any] = json.loads(SOURCE_BYTES)
+LEGAL_VERSION = str(_SOURCE["legal_version"])
+DOCUMENTS: dict[str, dict[str, dict[str, Any]]] = _SOURCE["documents"]
+
+_INLINE = re.compile(
+    r"\*\*(?P<strong>.+?)\*\*"
+    r"|\[(?P<label>[^\]]+)\]\((?P<url>https://[^)\s]+|mailto:[^)\s]+)\)"
+)
 
 
-DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
-    "privacy": {
-        "en": LegalDocument(
-            title="Privacy Policy",
-            summary=(
-                "How Telescan processes account, profile, and nearby "
-                "discovery data — and how you stay in control."
-            ),
-            effective_date="Effective September 1, 2026",
-            sections=(
-                (
-                    "Overview",
-                    "<p>Telescan is an iOS app for discovering nearby users "
-                    "and opening the public Telegram profiles they choose to "
-                    "share. This policy applies to the Telescan app, Telegram "
-                    "bot, API, and supporting service providers.</p>",
-                ),
-                (
-                    "Data we process",
-                    "<p>When you use Sign in with Apple, we receive a stable "
-                    "Apple account identifier and, only when you choose to "
-                    "share them, your name and email or Apple private-relay "
-                    "email. Apple authenticates your primary Telescan account.</p>"
-                    "<p>When you then link Telegram through the Telescan bot, "
-                    "we receive your Telegram ID, first name, username, and "
-                    "current public profile photo. At your request, the API "
-                    "issues a short-lived, one-time linking code. Only a "
-                    "keyed hash of that code is stored until it is used or "
-                    "expires; the iOS app does not retain the code.</p>"
-                    "<p>If you choose another profile photo, Telescan accesses "
-                    "only the image selected through the camera or system photo "
-                    "picker. The app resizes and compresses it before uploading "
-                    "a copy to Telescan cloud storage. You may also add an "
-                    "optional BIO of up to 36 characters.</p>"
-                    "<ul><li>Apple account identifier and optional name and email</li>"
-                    "<li>Telegram ID, first name, and username</li>"
-                    "<li>Random Telescan ID and active device sessions</li>"
-                    "<li>Temporary keyed hashes of one-time linking codes</li>"
-                    "<li>Telegram or user-selected profile photo</li>"
-                    "<li>Optional BIO you add to your Telescan profile</li>"
-                    "<li>Device-local Met and Saved profile snapshots</li>"
-                    "<li>Reports, blocks, and moderation records you create</li></ul>",
-                ),
-                (
-                    "Nearby discovery",
-                    "<p>While discoverability is enabled, the app broadcasts "
-                    "your random Telescan ID over Bluetooth Low Energy. Nearby "
-                    "Telescan devices use it to request the profile you share. "
-                    "Signal strength and approximate distance are processed "
-                    "locally and are not sent to the Telescan server. Blocked "
-                    "Telescan IDs are cached locally so blocked profiles stay "
-                    "hidden during network outages.</p>"
-                    "<p>After a complete profile leaves the nearby list, the "
-                    "app may keep its public profile snapshot and last-seen "
-                    "time in a device-local Met history. The history contains "
-                    "no GPS or distance measurements, is never uploaded, is "
-                    "removed after 24 hours. "
-                    "It can be cleared earlier and is also cleared on sign-out "
-                    "or account deletion. Blocking removes the profile from "
-                    "this local history.</p>"
-                    "<p>When you save another profile, the app keeps that "
-                    "public profile snapshot in a Saved list only on the "
-                    "current device. Saved profiles are not uploaded or "
-                    "synchronized between devices. They remain until you "
-                    "remove them, sign out, or delete the account.</p>",
-                ),
-                (
-                    "Reports and blocks",
-                    "<p>A report stores the reporter and target Telescan IDs, "
-                    "an optional comment, a snapshot of the target name, "
-                    "username, BIO and photo URL, review status, timestamps, and "
-                    "moderator audit fields. The current product submits one "
-                    "universal report instead of a user-selected category. "
-                    "The target is not shown the "
-                    "reporter's identity.</p><p>A block stores the account "
-                    "relationship, target profile snapshot, and creation time. "
-                    "It hides profile access in both directions and can be "
-                    "removed from the app.</p>",
-                ),
-                (
-                    "Data we do not collect",
-                    "<p>Telescan does not request or store GPS location or "
-                    "server-side movement history, "
-                    "contacts, Telegram messages, advertising identifiers, or "
-                    "precise Bluetooth-distance history. It does not include "
-                    "advertising or third-party analytics SDKs.</p>",
-                ),
-                (
-                    "Use and sharing",
-                    "<p>Account data is used only to authenticate users, link "
-                    "their required Telegram contact, display "
-                    "shared profiles, manage BIO and profile photos, operate nearby "
-                    "discovery, process reports and blocks, prevent abuse, "
-                    "and maintain the service. Telescan does not "
-                    "sell personal data.</p>"
-                    "<p>Data is disclosed to authenticated Telescan users who "
-                    "receive or already know your public Telescan ID, to "
-                    "infrastructure providers required to "
-                    "operate the service, to authorized moderators reviewing "
-                    "reports, or when required by law.</p>",
-                ),
-                (
-                    "Security and retention",
-                    "<p>API traffic uses encrypted HTTPS. Sign in with Apple "
-                    "identity tokens are verified against Apple's public keys. "
-                    "One-time Telegram linking "
-                    "codes are sent to the API over HTTPS and "
-                    "retained only as keyed hashes "
-                    "until use or expiry. Device sessions use short-lived "
-                    "access tokens and rotating refresh tokens stored by the "
-                    "iOS Keychain. During a limited backwards-compatibility "
-                    "rollout, an additional SHA-256 code hash may be retained "
-                    "for the older app and is removed after that rollout. "
-                    "Account records, BIO and stored profile photos "
-                    "remain until you delete the Telescan account. Blocks "
-                    "remain until unblocked or account deletion. Pending "
-                    "reports remain until a decision; resolved or dismissed "
-                    "reports expire after 180 days. Device-local Met entries "
-                    "expire after 24 hours; Saved entries remain until you "
-                    "remove them, sign out, or delete the account.</p>"
-                    "<p>Service infrastructure may process standard request "
-                    "metadata such as IP address, time, host, "
-                    "path, response status, and upstream timing for delivery, "
-                    "reliability, and security — never for advertising or "
-                    "behavioral analytics.</p>",
-                ),
-                (
-                    "Account and data deletion",
-                    "<p>Open the account menu on the Telegram linking screen "
-                    "or your profile in the app, select <strong>Delete "
-                    "account</strong>, and confirm. Telescan removes the live "
-                    "account record, linking codes, device sessions, blocks, "
-                    "stored photos, and local account data and caches. Report "
-                    "relations are removed and retained snapshots follow the "
-                    "limited moderation period. This operation "
-                    "cannot be undone and does not affect your Telegram account.</p>",
-                ),
-                (
-                    "Your choices",
-                    "<p>You can disable discoverability, clear the device-local "
-                    "24-hour encounter history, save or remove public profile "
-                    "snapshots on the current device, replace or remove your BIO and "
-                    "profile photo, report or block profiles, manage blocked "
-                    "profiles, sign out the current device, or delete "
-                    "your account and all its sessions. Depending on applicable law, "
-                    "you may also have rights to access, correct, restrict, or "
-                    "object to processing of personal data.</p>"
-                    "<p>Telescan is not intended for children under 13. A higher "
-                    "minimum age may apply where required by local law.</p>",
-                ),
-                (
-                    "Changes and contact",
-                    "<p>We may update this policy when the service or legal "
-                    "requirements change. The effective date identifies the "
-                    "current version.</p><p>Privacy questions: "
-                    '<a href="mailto:admin@tgtelescan.ru">'
-                    "admin@tgtelescan.ru</a>.</p>",
-                ),
-            ),
-        ),
-        "ru": LegalDocument(
-            title="Политика конфиденциальности",
-            summary=(
-                "Как Telescan обрабатывает данные аккаунта, фотографии и "
-                "поиска людей рядом — и как вы ими управляете."
-            ),
-            effective_date="Действует с 1 сентября 2026 года",
-            sections=(
-                (
-                    "Общие положения",
-                    "<p>Telescan — приложение для iOS, которое помогает "
-                    "находить пользователей рядом и открывать публичные "
-                    "профили Telegram, которыми они решили поделиться. "
-                    "Политика распространяется на приложение, Telegram-бота, "
-                    "API и поставщиков, обеспечивающих работу сервиса.</p>",
-                ),
-                (
-                    "Какие данные мы обрабатываем",
-                    "<p>При входе с Apple мы получаем постоянный идентификатор "
-                    "аккаунта Apple, а имя и email или приватный relay-email Apple — "
-                    "только если вы решили ими поделиться. Apple используется для "
-                    "аутентификации основного аккаунта Telescan.</p>"
-                    "<p>При последующей привязке Telegram через бота Telescan мы "
-                    "получаем ваш Telegram ID, имя, username и текущую публичную "
-                    "фотографию профиля. По вашему запросу API выпускает "
-                    "одноразовый код привязки с коротким сроком действия. До "
-                    "использования или истечения срока хранится только его "
-                    "ключевой хеш; приложение iOS не сохраняет сам код.</p>"
-                    "<p>Если вы выбираете другую фотографию, Telescan получает "
-                    "доступ только к снимку, выбранному через камеру или "
-                    "системный медиапикер. Приложение уменьшает и сжимает его "
-                    "перед загрузкой копии в облачное хранилище. Вы также можете "
-                    "добавить необязательное BIO длиной до 36 символов.</p>"
-                    "<ul><li>Идентификатор Apple и необязательные имя и email</li>"
-                    "<li>Telegram ID, имя и username</li>"
-                    "<li>Случайный Telescan ID и активные сессии устройств</li>"
-                    "<li>Временные ключевые хеши одноразовых кодов привязки</li>"
-                    "<li>Фотография из Telegram или выбранная вами</li>"
-                    "<li>Необязательное BIO, добавленное вами в Telescan</li>"
-                    "<li>Локальные снимки профилей в «Виделись» и «Сохранённых»</li>"
-                    "<li>Созданные вами жалобы, блокировки и записи модерации</li></ul>",
-                ),
-                (
-                    "Поиск людей рядом",
-                    "<p>Когда видимость включена, приложение передаёт ваш "
-                    "случайный Telescan ID через Bluetooth Low Energy. Устройства Telescan "
-                    "рядом используют его, чтобы запросить опубликованный вами "
-                    "профиль. Сила сигнала и примерное расстояние обрабатываются "
-                    "локально и не отправляются на сервер Telescan. Telescan ID "
-                    "заблокированных профилей кешируются локально, чтобы они "
-                    "не появлялись без сети.</p>"
-                    "<p>После исчезновения полного профиля из списка рядом "
-                    "приложение может сохранить его публичный снимок и время "
-                    "последней встречи в локальном разделе «Виделись». История "
-                    "не содержит GPS или замеров расстояния, не загружается на "
-                    "сервер и удаляется через 24 часа. "
-                    "Её можно очистить раньше; она также очищается при выходе "
-                    "или удалении аккаунта. Блокировка удаляет профиль из этой "
-                    "локальной истории.</p>"
-                    "<p>Когда вы сохраняете другой профиль, приложение хранит "
-                    "его публичный снимок в разделе «Сохранённые» только на "
-                    "текущем устройстве. Эти профили не загружаются на сервер "
-                    "и не синхронизируются между устройствами. Они остаются до "
-                    "удаления вами, выхода или удаления аккаунта.</p>",
-                ),
-                (
-                    "Жалобы и блокировки",
-                    "<p>Жалоба содержит Telescan ID отправителя и цели, "
-                    "необязательный комментарий, снимок имени, username, BIO и URL "
-                    "фотографии цели, статус, время и аудит модератора. Текущая "
-                    "версия отправляет одну универсальную жалобу без выбора "
-                    "категории пользователем. Цель не "
-                    "видит личность отправителя.</p><p>Блокировка содержит связь "
-                    "аккаунтов, снимок профиля цели и время. Она скрывает "
-                    "профили в обоих направлениях и может быть отменена в приложении.</p>",
-                ),
-                (
-                    "Что мы не собираем",
-                    "<p>Telescan не запрашивает и не хранит GPS-геолокацию, "
-                    "серверную историю перемещений, контакты, сообщения Telegram, "
-                    "рекламные идентификаторы или точную историю Bluetooth-"
-                    "расстояний. В приложении нет рекламы и сторонних "
-                    "аналитических SDK.</p>",
-                ),
-                (
-                    "Использование и передача",
-                    "<p>Данные аккаунта используются только для аутентификации, "
-                    "привязки обязательного контакта Telegram, "
-                    "показа опубликованных профилей, управления BIO и фотографиями, "
-                    "поиска людей рядом, обработки жалоб и блокировок, "
-                    "предотвращения злоупотреблений и поддержки сервиса. Telescan не продаёт "
-                    "персональные данные.</p>"
-                    "<p>Данные раскрываются пользователям Telescan, которые "
-                    "получили или уже знают ваш публичный Telescan ID, "
-                    "поставщикам инфраструктуры для работы "
-                    "сервиса, уполномоченным модераторам для рассмотрения жалоб "
-                    "или когда этого требует закон.</p>",
-                ),
-                (
-                    "Безопасность и хранение",
-                    "<p>API работает через защищённое соединение HTTPS. "
-                    "Identity-токены входа с Apple проверяются по публичным "
-                    "ключам Apple. Одноразовые коды привязки Telegram передаются "
-                    "API по HTTPS и до использования или истечения "
-                    "срока хранятся только как ключевые хеши. Сессии устройств "
-                    "используют короткоживущие access-токены и ротируемые "
-                    "refresh-токены в iOS Keychain. На время ограниченного "
-                    "переходного периода для старой версии приложения может "
-                    "дополнительно храниться SHA-256-хеш кода; после перехода "
-                    "он удаляется. Запись аккаунта, BIO и фотографии "
-                    "хранятся до удаления аккаунта Telescan. Блокировки "
-                    "хранятся до разблокировки или удаления аккаунта. Жалобы "
-                    "до решения, а закрытые жалобы удаляются через 180 дней. "
-                    "Локальные записи «Виделись» удаляются через 24 часа, а "
-                    "«Сохранённые» — при удалении пользователем, выходе или "
-                    "удалении аккаунта.</p>"
-                    "<p>Инфраструктура сервиса может обрабатывать стандартные "
-                    "данные запросов — IP-адрес, "
-                    "время, host, путь, статус ответа и время upstream — для доставки, "
-                    "надёжности и безопасности, но не для рекламы или "
-                    "поведенческой аналитики.</p>",
-                ),
-                (
-                    "Удаление аккаунта и данных",
-                    "<p>Откройте меню аккаунта на экране привязки Telegram или "
-                    "профиль в приложении, выберите <strong>Удалить "
-                    "аккаунт</strong> и подтвердите действие. Telescan удалит "
-                    "активную запись аккаунта, коды привязки, сессии устройств, блокировки, "
-                    "сохранённые фотографии, "
-                    "локальные данные и кеши. Связь жалоб с удалённым аккаунтом "
-                    "удаляется, а снимки профиля хранятся только в пределах "
-                    "срока модерации. Операцию нельзя отменить; аккаунт "
-                    "Telegram при этом не изменяется.</p>",
-                ),
-                (
-                    "Ваш выбор",
-                    "<p>Вы можете отключить видимость, очистить локальную "
-                    "24-часовую историю встреч, сохранять или удалять публичные "
-                    "снимки профилей на текущем устройстве, заменить или удалить BIO и "
-                    "фотографию, пожаловаться или заблокировать профиль, "
-                    "управлять блокировками, выйти на текущем устройстве или удалить "
-                    "аккаунт и все его сессии. "
-                    "В зависимости от применимого законодательства вы также "
-                    "можете иметь право на доступ, исправление, ограничение или "
-                    "возражение против обработки персональных данных.</p>"
-                    "<p>Telescan не предназначен для детей младше 13 лет. "
-                    "Местное законодательство может устанавливать более высокий "
-                    "минимальный возраст.</p>",
-                ),
-                (
-                    "Изменения и контакты",
-                    "<p>Мы можем обновлять политику при изменении сервиса или "
-                    "правовых требований. Дата вступления в силу обозначает "
-                    "текущую версию.</p><p>Вопросы о конфиденциальности: "
-                    '<a href="mailto:admin@tgtelescan.ru">'
-                    "admin@tgtelescan.ru</a>.</p>",
-                ),
-            ),
-        ),
-    },
-    "terms": {
-        "en": LegalDocument(
-            title="Terms of Service",
-            summary=(
-                "The essential terms for using the Telescan app, bot, API, "
-                "and related services."
-            ),
-            effective_date="Effective August 24, 2026",
-            sections=(
-                (
-                    "Agreement",
-                    "<p>These Terms govern your use of the Telescan iOS app, "
-                    "Telegram bot, API, and related services. By continuing in "
-                    "the app or using the service, you agree to these Terms and "
-                    'the <a href="/privacy">Privacy Policy</a>. If you do not '
-                    "agree, do not use Telescan.</p>",
-                ),
-                (
-                    "The service",
-                    "<p>Telescan helps nearby users discover and open public "
-                    "Telegram profiles they choose to share. Bluetooth Low "
-                    "Energy provides local discovery; an internet connection is "
-                    "required for Sign in with Apple, Telegram linking, profile "
-                    "loading, BIO and photo "
-                    "management, and account deletion.</p>"
-                    "<p>Telescan is experimental. BLE visibility and distance "
-                    "estimates may be delayed, incomplete, or inaccurate and "
-                    "must not be used for safety, navigation, emergencies, "
-                    "identity verification, or decisions requiring precise "
-                    "proximity.</p>",
-                ),
-                (
-                    "Your account and content",
-                    "<p>You must be allowed to use Telegram and Telescan under "
-                    "applicable law and platform rules. You are responsible for "
-                    "your Apple-authenticated Telescan account, linked devices, "
-                    "Telegram account, profile "
-                    "information, BIO, and uploaded photos. Share only content you "
-                    "have the right to use.</p>"
-                    "<p>Your Telescan ID is advertised nearby only while "
-                    "discoverability is enabled. Authenticated users who already "
-                    "know that identifier may still request the shared profile, "
-                    "and radio identifiers can be observed or replayed by "
-                    "devices in range.</p>"
-                    "<p>You may report or block a profile. Blocking hides "
-                    "profile access in both directions until you unblock it. "
-                    "Reports must be submitted in good faith and contain only "
-                    "relevant information.</p>",
-                ),
-                (
-                    "Acceptable use",
-                    "<p>Do not use Telescan to:</p><ul>"
-                    "<li>Harass, stalk, threaten, impersonate, deceive, or harm</li>"
-                    "<li>Collect, publish, or misuse another person’s data</li>"
-                    "<li>Upload unlawful or rights-infringing content</li>"
-                    "<li>Submit knowingly false or retaliatory reports</li>"
-                    "<li>Probe, disrupt, overload, bypass, or interfere with the service</li>"
-                    "<li>Use automation or reverse engineering unlawfully</li>"
-                    "</ul><p>We may restrict access when reasonably necessary to "
-                    "protect users, the service, or comply with law.</p>",
-                ),
-                (
-                    "Third-party services",
-                    "<p>Telescan relies on Telegram, Apple platforms, network "
-                    "and hosting providers, storage providers, and other "
-                    "infrastructure. "
-                    "Their services and terms are "
-                    "separate from ours. App Store distributions are also "
-                    'subject to Apple’s <a href="https://www.apple.com/legal/'
-                    'internet-services/itunes/dev/stdeula/" rel="noopener">'
-                    "Standard Licensed Application EULA</a> unless another "
-                    "agreement applies.</p>",
-                ),
-                (
-                    "Availability and warranties",
-                    "<p>The service may change, be suspended, or stop operating. "
-                    "To the maximum extent permitted by law, Telescan is "
-                    "provided <strong>as is</strong> and <strong>as available</strong> "
-                    "without guarantees of uninterrupted availability, "
-                    "compatibility, accuracy, security, or fitness for a "
-                    "particular purpose. Mandatory consumer rights remain "
-                    "unaffected.</p>",
-                ),
-                (
-                    "Limitation of liability",
-                    "<p>To the maximum extent permitted by law, Telescan’s "
-                    "maintainers are not liable for indirect, incidental, "
-                    "special, or consequential loss arising from use of or "
-                    "inability to use the service. Liability that cannot be "
-                    "excluded remains limited only as permitted by law.</p>",
-                ),
-                (
-                    "Changes and contact",
-                    "<p>We may update these Terms when the service or legal "
-                    "requirements change. Material changes will be presented "
-                    "through an appropriate service or documentation update.</p>"
-                    '<p>Questions: <a href="mailto:admin@tgtelescan.ru">'
-                    "admin@tgtelescan.ru</a>.</p>",
-                ),
-            ),
-        ),
-        "ru": LegalDocument(
-            title="Условия использования",
-            summary=(
-                "Основные условия использования приложения Telescan, бота, "
-                "API и связанных сервисов."
-            ),
-            effective_date="Действуют с 24 августа 2026 года",
-            sections=(
-                (
-                    "Согласие с условиями",
-                    "<p>Эти Условия регулируют использование приложения "
-                    "Telescan для iOS, Telegram-бота, API и связанных сервисов. "
-                    "Продолжая работу в приложении или используя сервис, вы "
-                    'принимаете эти Условия и <a href="/privacy?lang=ru">'
-                    "Политику конфиденциальности</a>. Если вы не согласны, не "
-                    "используйте Telescan.</p>",
-                ),
-                (
-                    "Сервис",
-                    "<p>Telescan помогает пользователям рядом находить и "
-                    "открывать публичные профили Telegram, которыми они решили "
-                    "поделиться. Bluetooth Low Energy используется для поиска; "
-                    "интернет требуется для входа с Apple, привязки Telegram, "
-                    "загрузки профилей, "
-                    "управления BIO и фотографиями и удаления аккаунта.</p>"
-                    "<p>Telescan является экспериментальным сервисом. Видимость "
-                    "BLE и оценка расстояния могут быть неточными, неполными или "
-                    "запаздывать. Их нельзя использовать для безопасности, "
-                    "навигации, экстренной помощи, проверки личности или решений, "
-                    "требующих точного расстояния.</p>",
-                ),
-                (
-                    "Ваш аккаунт и контент",
-                    "<p>Вы должны иметь право использовать Telegram и Telescan "
-                    "по применимым законам и правилам платформ. Вы отвечаете за "
-                    "аккаунт Telescan с входом через Apple, привязанные устройства, "
-                    "аккаунт Telegram, сведения профиля, BIO и "
-                    "загруженные фотографии. Публикуйте только контент, на "
-                    "использование которого у вас есть права.</p>"
-                    "<p>Telescan ID передаётся устройствам рядом только при "
-                    "включённой видимости. Пользователь, который уже знает этот "
-                    "идентификатор, всё равно может запросить опубликованный "
-                    "профиль, а радиоидентификаторы могут быть перехвачены или "
-                    "повторены устройствами в зоне сигнала.</p>"
-                    "<p>Вы можете пожаловаться на профиль или заблокировать его. "
-                    "Блокировка скрывает профили в обоих направлениях до "
-                    "разблокировки. Жалобы должны подаваться добросовестно и "
-                    "содержать только относящуюся к нарушению информацию.</p>",
-                ),
-                (
-                    "Допустимое использование",
-                    "<p>Запрещено использовать Telescan, чтобы:</p><ul>"
-                    "<li>Преследовать, запугивать, выдавать себя за другого или причинять вред</li>"
-                    "<li>Собирать, публиковать или неправомерно использовать чужие данные</li>"
-                    "<li>Загружать незаконный контент или нарушать чужие права</li>"
-                    "<li>Отправлять заведомо ложные жалобы или использовать их для мести</li>"
-                    "<li>Исследовать, нарушать, перегружать или обходить защиту сервиса</li>"
-                    "<li>Незаконно применять автоматизацию или обратную разработку</li>"
-                    "</ul><p>Мы можем ограничить доступ, когда это обоснованно "
-                    "необходимо для защиты пользователей, сервиса или соблюдения закона.</p>",
-                ),
-                (
-                    "Сторонние сервисы",
-                    "<p>Telescan зависит от Telegram, платформ Apple, "
-                    "поставщиков сетевой и серверной инфраструктуры, "
-                    "хранилищ и других сервисов. Их "
-                    "сервисы и условия не "
-                    "являются частью наших. Приложение из App Store также "
-                    'подчиняется <a href="https://www.apple.com/legal/internet-'
-                    'services/itunes/dev/stdeula/" rel="noopener">стандартному '
-                    "лицензионному соглашению Apple</a>, если не применяется "
-                    "другое соглашение.</p>",
-                ),
-                (
-                    "Доступность и гарантии",
-                    "<p>Сервис может измениться, быть приостановлен или "
-                    "прекратить работу. В максимально разрешённой законом "
-                    "степени Telescan предоставляется <strong>как есть</strong> и "
-                    "<strong>по мере доступности</strong>, без гарантий "
-                    "бесперебойной работы, совместимости, точности, безопасности "
-                    "или пригодности для конкретной цели. Обязательные права "
-                    "потребителей сохраняются.</p>",
-                ),
-                (
-                    "Ограничение ответственности",
-                    "<p>В максимально разрешённой законом степени разработчики "
-                    "Telescan не отвечают за косвенные, случайные, специальные "
-                    "или последующие убытки из-за использования или невозможности "
-                    "использования сервиса. Ответственность, которую нельзя "
-                    "исключить, ограничивается только в разрешённой законом степени.</p>",
-                ),
-                (
-                    "Изменения и контакты",
-                    "<p>Мы можем обновлять Условия при изменении сервиса или "
-                    "правовых требований. О существенных изменениях будет "
-                    "сообщено через сервис или документацию.</p><p>Вопросы: "
-                    '<a href="mailto:admin@tgtelescan.ru">'
-                    "admin@tgtelescan.ru</a>.</p>",
-                ),
-            ),
-        ),
-    },
-}
+def _validate_source() -> None:
+    if _SOURCE.get("schema_version") != 1:
+        raise RuntimeError("Unsupported legal source schema")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", LEGAL_VERSION) is None:
+        raise RuntimeError("Legal version must be an ISO date")
+    try:
+        date.fromisoformat(LEGAL_VERSION)
+    except ValueError as error:
+        raise RuntimeError("Legal version must be a valid calendar date") from error
+    if set(DOCUMENTS) != {"privacy", "terms"}:
+        raise RuntimeError("Legal source must contain privacy and terms")
+    for kind, localized in DOCUMENTS.items():
+        if set(localized) != {"en", "ru"}:
+            raise RuntimeError(f"{kind} must contain en and ru")
+        expected_sections: set[str] | None = None
+        for language, document in localized.items():
+            for key in (
+                "title",
+                "summary",
+                "effective_date",
+                "effective_label",
+                "canonical_url",
+            ):
+                if not isinstance(document.get(key), str) or not document[key]:
+                    raise RuntimeError(f"Missing {kind}.{language}.{key}")
+            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", document["effective_date"]) is None:
+                raise RuntimeError(f"Invalid effective date for {kind}.{language}")
+            try:
+                date.fromisoformat(document["effective_date"])
+            except ValueError as error:
+                raise RuntimeError(
+                    f"Invalid effective date for {kind}.{language}"
+                ) from error
+            _safe_url(document["canonical_url"])
+            sections = document.get("sections")
+            if not isinstance(sections, list) or not sections:
+                raise RuntimeError(f"Missing {kind}.{language}.sections")
+            section_ids = {section.get("id") for section in sections}
+            if None in section_ids or len(section_ids) != len(sections):
+                raise RuntimeError(f"Invalid section ids for {kind}.{language}")
+            if expected_sections is None:
+                expected_sections = section_ids
+            elif section_ids != expected_sections:
+                raise RuntimeError(f"Section mismatch for {kind}.{language}")
+            for section in sections:
+                if not section.get("title") or not section.get("blocks"):
+                    raise RuntimeError(
+                        f"Invalid section in {kind}.{language}: {section.get('id')}"
+                    )
+                for block in section["blocks"]:
+                    block_type = block.get("type")
+                    if block_type == "paragraph":
+                        if not block.get("text"):
+                            raise RuntimeError("Empty legal paragraph")
+                    elif block_type == "list":
+                        if not block.get("items"):
+                            raise RuntimeError("Empty legal list")
+                    else:
+                        raise RuntimeError(f"Unsupported legal block: {block_type}")
+
+
+def _safe_url(url: str) -> str:
+    parsed = urlparse(url)
+    if (
+        parsed.scheme == "https"
+        and parsed.hostname
+        and parsed.username is None
+        and parsed.password is None
+    ):
+        return url
+    if parsed.scheme == "mailto" and parsed.path and not parsed.netloc:
+        return url
+    raise RuntimeError("Unsupported URL in legal source")
+
+
+_validate_source()
+
+
+def _render_inline(text: str) -> str:
+    rendered: list[str] = []
+    cursor = 0
+    for match in _INLINE.finditer(text):
+        rendered.append(escape(text[cursor : match.start()]))
+        strong = match.group("strong")
+        if strong is not None:
+            rendered.append(f"<strong>{escape(strong)}</strong>")
+        else:
+            label = escape(match.group("label"))
+            url = escape(_safe_url(match.group("url")), quote=True)
+            rel = ' rel="noopener"' if url.startswith("https://") else ""
+            rendered.append(f'<a href="{url}"{rel}>{label}</a>')
+        cursor = match.end()
+    rendered.append(escape(text[cursor:]))
+    return "".join(rendered)
+
+
+def _render_sections(document: dict[str, Any]) -> str:
+    rendered: list[str] = []
+    for section in document["sections"]:
+        blocks: list[str] = []
+        for block in section["blocks"]:
+            if block["type"] == "paragraph":
+                blocks.append(f"<p>{_render_inline(block['text'])}</p>")
+            else:
+                items = "".join(
+                    f"<li>{_render_inline(item)}</li>" for item in block["items"]
+                )
+                blocks.append(f"<ul>{items}</ul>")
+        rendered.append(
+            f'<section id="{escape(section["id"], quote=True)}">'
+            f"<h2>{escape(section['title'])}</h2>{''.join(blocks)}</section>"
+        )
+    return "".join(rendered)
 
 
 def resolve_language(requested: str | None, accept_language: str) -> str:
@@ -589,22 +195,19 @@ def render_page(kind: str, language: str) -> str:
         current_label = "Конфиденциальность" if kind == "privacy" else "Условия"
         other_label = "Условия" if kind == "privacy" else "Конфиденциальность"
 
-    sections = "".join(
-        f"<section><h2>{escape(title)}</h2>{body}</section>"
-        for title, body in document.sections
-    )
-
     return _page_template().substitute(
         current_label=current_label,
-        effective_date=escape(document.effective_date),
+        effective_date=escape(document["effective_label"]),
         kind=kind,
         language=language,
         language_name=language_name,
+        legal_hash=LEGAL_SOURCE_SHA256,
+        legal_version=escape(LEGAL_VERSION),
         opposite_language=opposite_language,
         other_kind=other_kind,
         other_label=other_label,
-        other_title=escape(other_document.title),
-        sections=sections,
-        summary=escape(document.summary),
-        title=escape(document.title),
+        other_title=escape(other_document["title"]),
+        sections=_render_sections(document),
+        summary=escape(document["summary"]),
+        title=escape(document["title"]),
     )

@@ -11,6 +11,7 @@ from src.domain.ports import (
 )
 from src.domain.usernames import require_telegram_username
 from src.services.codes import LinkCodeService
+from src.services.account_operations import AccountOperationGuard
 from src.services.photos import PhotoService
 
 
@@ -26,6 +27,7 @@ class IssueLinkCode:
         photos: PhotoService,
         ttl_seconds: int,
         legacy_codes: LegacyCodePublisherPort | None = None,
+        account_operations: AccountOperationGuard | None = None,
     ) -> None:
         self._users = users
         self._link_codes = link_codes
@@ -33,6 +35,7 @@ class IssueLinkCode:
         self._photos = photos
         self._ttl_seconds = ttl_seconds
         self._legacy_codes = legacy_codes
+        self._account_operations = account_operations
 
     async def execute(
         self,
@@ -45,7 +48,36 @@ class IssueLinkCode:
     ) -> IssuedLinkCode:
         username = require_telegram_username(tg_username)
         current_time = now or datetime.now(UTC)
-        user = await self._users.upsert_telegram_profile(tg_id, tg_name, username)
+        if self._account_operations is None:
+            user = await self._users.upsert_telegram_profile(tg_id, tg_name, username)
+            return await self._finish(user, photo, photo_state, current_time)
+
+        # Before the first placeholder exists there is no ObjectId to lock.
+        # A process-local Telegram key serializes that one-time creation. Once
+        # the user exists, all profile/S3/code writes occur under its account
+        # lock and after the durable-fence admission check.
+        async with self._account_operations.exclusive(f"telegram:{tg_id}"):
+            existing_user = await self._users.get_by_tg_id(tg_id)
+            if existing_user is None:
+                user = await self._users.upsert_telegram_profile(
+                    tg_id, tg_name, username
+                )
+            else:
+                user = existing_user
+            user_id = str(getattr(user, "id"))
+            async with self._account_operations.admit(user_id):
+                user = await self._users.upsert_telegram_profile(
+                    tg_id, tg_name, username
+                )
+                return await self._finish(user, photo, photo_state, current_time)
+
+    async def _finish(
+        self,
+        user: object,
+        photo: bytes | None,
+        photo_state: TelegramPhotoState,
+        current_time: datetime,
+    ) -> IssuedLinkCode:
 
         if photo is not None:
             try:
@@ -107,15 +139,17 @@ class IssueLinkCode:
                     )
 
         user_id = str(getattr(user, "id"))
-        await self._link_codes.revoke_issued(user_id, current_time)
         expires_at = current_time + timedelta(seconds=self._ttl_seconds)
 
         # A unique index is the final collision guard. Five attempts make an
         # already astronomically unlikely random collision harmless.
         last_error: Exception | None = None
-        for _ in range(5):
+        for _ in range(10):
             code = self._codes.generate()
             try:
+                # Revocation plus the partial unique issued-user index makes
+                # concurrent requests converge on a single latest code.
+                await self._link_codes.revoke_issued(user_id, current_time)
                 await self._link_codes.create(
                     self._codes.hash(code), user_id, current_time, expires_at
                 )

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.domain.enums import ReportReason, ReportStatus
+from src.domain.enums import ReportPhotoEvidenceStatus, ReportReason, ReportStatus
 
 
 class ReportCreateRequest(BaseModel):
@@ -42,6 +42,9 @@ class ModerationReportResponse(BaseModel):
     target_username: Annotated[str | None, Field(alias="targetUsername")] = None
     target_bio: Annotated[str | None, Field(alias="targetBio")] = None
     target_photo_url: Annotated[str | None, Field(alias="targetPhotoUrl")] = None
+    target_photo_evidence_status: Annotated[
+        ReportPhotoEvidenceStatus, Field(alias="targetPhotoEvidenceStatus")
+    ] = ReportPhotoEvidenceStatus.ABSENT
     status: ReportStatus
     created_at: Annotated[datetime, Field(alias="createdAt")]
     updated_at: Annotated[datetime, Field(alias="updatedAt")]
@@ -49,6 +52,21 @@ class ModerationReportResponse(BaseModel):
     retention_until: Annotated[datetime | None, Field(alias="retentionUntil")] = None
     moderator_id: Annotated[str | None, Field(alias="moderatorId")] = None
     moderator_note: Annotated[str | None, Field(alias="moderatorNote")] = None
+    revision: int = 0
+    moderation_history: Annotated[
+        list["ModerationEventResponse"], Field(alias="moderationHistory")
+    ] = Field(default_factory=list)
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ModerationEventResponse(BaseModel):
+    revision: int
+    from_status: Annotated[ReportStatus, Field(alias="fromStatus")]
+    to_status: Annotated[ReportStatus, Field(alias="toStatus")]
+    moderator_id: Annotated[str, Field(alias="moderatorId")]
+    note: str | None = None
+    note_changed: Annotated[bool, Field(alias="noteChanged")] = False
+    created_at: Annotated[datetime, Field(alias="createdAt")]
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -58,4 +76,5 @@ class ModerationDecisionRequest(BaseModel):
         str, Field(alias="moderatorId", min_length=1, max_length=100)
     ]
     note: Annotated[str | None, Field(max_length=1000)] = None
+    revision: Annotated[int | None, Field(ge=0)] = None
     model_config = ConfigDict(populate_by_name=True)

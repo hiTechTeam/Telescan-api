@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: telescan_api
     restart: unless-stopped
+    deploy:
+      replicas: 1
     ports:
       - '127.0.0.1:8000:8000'
     env_file:
@@ -12,6 +14,12 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
+    volumes:
+      - type: bind
+        source: /home/ubuntu/telescan/.runtime/Telescan-api
+        target: /run/telescan-api-singleton
+        bind:
+          create_host_path: false
     cap_drop:
       - ALL
     security_opt:
