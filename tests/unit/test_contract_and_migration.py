@@ -882,3 +882,4 @@ def test_account_lock_topology_is_pinned_to_one_api_process() -> None:
     assert "10001:10001:750" in controller
     assert "10001:10001:600" in controller
     assert "production-instance.lock" in controller
+    assert "sudo -u '#10001'" not in controller

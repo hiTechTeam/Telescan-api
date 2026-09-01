@@ -175,7 +175,7 @@ preprovision_runtime() {
     return 1
   fi
   if ! sudo test -e "$runtime_dir/production-instance.lock"; then
-    sudo -u '#10001' touch "$runtime_dir/production-instance.lock"
+    sudo touch "$runtime_dir/production-instance.lock"
   fi
   sudo test -f "$runtime_dir/production-instance.lock"
   sudo chown 10001:10001 "$runtime_dir/production-instance.lock"
