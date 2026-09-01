@@ -134,6 +134,7 @@ set_evidence_worker() {
   [[ "$action" == enable || "$action" == disable ]] || return
   test -f "$release_dir/scripts/evidence_worker_gate.py" || return
   sudo python3 "$release_dir/scripts/evidence_worker_gate.py" "$action" \
+    --path "$runtime_dir/evidence-worker.enabled" \
     --expected-uid 10001 || return
 }
 
