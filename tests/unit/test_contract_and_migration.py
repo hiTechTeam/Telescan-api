@@ -145,9 +145,7 @@ def test_own_profile_contract_cannot_target_another_user() -> None:
         "content"
     ]["application/json"]["schema"]["$ref"]
     report_component = report_schema_ref.rsplit("/", maxsplit=1)[1]
-    report_properties = schema["components"]["schemas"][report_component][
-        "properties"
-    ]
+    report_properties = schema["components"]["schemas"][report_component]["properties"]
     assert set(report_properties) == {
         "clientRequestId",
         "targetTelescanId",
@@ -223,9 +221,7 @@ def test_migration_is_dry_run_and_idempotent() -> None:
 
 
 def test_universal_report_migration_removes_legacy_pending_index() -> None:
-    reports = FakeMigrationCollection(
-        indexes={"uniq_pending_report": {"unique": True}}
-    )
+    reports = FakeMigrationCollection(indexes={"uniq_pending_report": {"unique": True}})
 
     dry_run = migrate_reports(reports, apply=False)
     assert dry_run == {"legacy_pending_index_present": True, "indexes_dropped": 0}

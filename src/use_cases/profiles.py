@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -13,6 +14,9 @@ from src.domain.ports import (
     UserRepositoryPort,
 )
 from src.services.photos import PhotoService
+
+
+logger = logging.getLogger(__name__)
 
 
 class GetOwnProfile:
@@ -76,19 +80,38 @@ class UpdateOwnPhoto:
         user = await self._users.get_by_id(user_id)
         if user is None:
             raise UserNotFound()
-        url = await self._photos.replace(
-            getattr(user, "telescan_id"), photo, getattr(user, "photo_s3_link", None)
-        )
-        return await self._users.update_photo(user_id, url)
+        old_url = getattr(user, "photo_s3_link", None)
+        url = await self._photos.upload(getattr(user, "telescan_id"), photo)
+        try:
+            updated = await self._users.update_photo(user_id, url)
+        except Exception:
+            try:
+                await self._photos.delete_by_url(url)
+            except Exception:
+                logger.exception(
+                    "Could not remove unreferenced replacement photo for user %s",
+                    user_id,
+                )
+            raise
+
+        if old_url and old_url != url:
+            try:
+                await self._photos.delete_by_url(old_url)
+            except Exception:
+                logger.exception(
+                    "Could not remove obsolete profile photo for user %s",
+                    user_id,
+                )
+        return updated
 
     async def delete(self, user_id: str) -> object:
         user = await self._users.get_by_id(user_id)
         if user is None:
             raise UserNotFound()
-        await self._photos.delete_all(
-            getattr(user, "telescan_id"), getattr(user, "photo_s3_link", None)
-        )
-        return await self._users.update_photo(user_id, None)
+        current_url = getattr(user, "photo_s3_link", None)
+        updated = await self._users.update_photo(user_id, None)
+        await self._photos.delete_all(getattr(user, "telescan_id"), current_url)
+        return updated
 
 
 class DeleteAccount:

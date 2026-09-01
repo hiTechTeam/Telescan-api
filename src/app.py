@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.api.routers import router as api_router
@@ -53,7 +53,7 @@ def create_app(
         title="Telescan API",
         description="Authenticated profile discovery API",
         version="2.0.0",
-        default_response_class=ORJSONResponse,
+        default_response_class=JSONResponse,
         lifespan=lifespan,
     )
     application.include_router(api_router)
@@ -71,8 +71,8 @@ def create_app(
         )
 
     @application.exception_handler(InvalidLinkCode)
-    async def invalid_link_code(_: Request, __: InvalidLinkCode) -> ORJSONResponse:
-        return ORJSONResponse(
+    async def invalid_link_code(_: Request, __: InvalidLinkCode) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Invalid or expired link code"},
         )
@@ -80,8 +80,8 @@ def create_app(
     @application.exception_handler(InvalidAppleCredential)
     async def invalid_apple_credential(
         _: Request, __: InvalidAppleCredential
-    ) -> ORJSONResponse:
-        return ORJSONResponse(
+    ) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={
                 "detail": "Invalid Sign in with Apple credential",
@@ -91,8 +91,8 @@ def create_app(
 
     @application.exception_handler(AppleIdentityConflict)
     @application.exception_handler(TelegramIdentityConflict)
-    async def identity_conflict(_: Request, __: Exception) -> ORJSONResponse:
-        return ORJSONResponse(
+    async def identity_conflict(_: Request, __: Exception) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={
                 "detail": "This identity is linked to another account",
@@ -103,8 +103,8 @@ def create_app(
     @application.exception_handler(TelegramUsernameRequired)
     async def telegram_username_required(
         _: Request, __: TelegramUsernameRequired
-    ) -> ORJSONResponse:
-        return ORJSONResponse(
+    ) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={
                 "detail": "Public Telegram username is required",
@@ -115,8 +115,8 @@ def create_app(
     @application.exception_handler(InvalidToken)
     @application.exception_handler(SessionRevoked)
     @application.exception_handler(RefreshTokenReused)
-    async def invalid_auth(_: Request, __: Exception) -> ORJSONResponse:
-        return ORJSONResponse(
+    async def invalid_auth(_: Request, __: Exception) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Authentication required"},
             headers={"WWW-Authenticate": "Bearer"},
@@ -125,22 +125,22 @@ def create_app(
     @application.exception_handler(UserNotFound)
     @application.exception_handler(ConfirmationNotFound)
     @application.exception_handler(ModerationItemNotFound)
-    async def not_found(_: Request, __: Exception) -> ORJSONResponse:
-        return ORJSONResponse(
+    async def not_found(_: Request, __: Exception) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={"detail": "Not found"},
         )
 
     @application.exception_handler(ForbiddenConfirmation)
-    async def forbidden(_: Request, __: ForbiddenConfirmation) -> ORJSONResponse:
-        return ORJSONResponse(
+    async def forbidden(_: Request, __: ForbiddenConfirmation) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={"detail": "Confirmation does not belong to this user"},
         )
 
     @application.exception_handler(InvalidPhoto)
-    async def invalid_photo(_: Request, error: InvalidPhoto) -> ORJSONResponse:
-        return ORJSONResponse(
+    async def invalid_photo(_: Request, error: InvalidPhoto) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": str(error)},
         )
@@ -148,23 +148,23 @@ def create_app(
     @application.exception_handler(InvalidModerationAction)
     async def invalid_moderation_action(
         _: Request, error: InvalidModerationAction
-    ) -> ORJSONResponse:
-        return ORJSONResponse(
+    ) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": str(error)},
         )
 
     @application.exception_handler(RateLimitExceeded)
-    async def rate_limited(_: Request, error: RateLimitExceeded) -> ORJSONResponse:
-        return ORJSONResponse(
+    async def rate_limited(_: Request, error: RateLimitExceeded) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={"detail": "Too many requests"},
             headers={"Retry-After": str(error.retry_after_seconds)},
         )
 
     @application.exception_handler(ExternalServiceUnavailable)
-    async def unavailable(_: Request, __: ExternalServiceUnavailable) -> ORJSONResponse:
-        return ORJSONResponse(
+    async def unavailable(_: Request, __: ExternalServiceUnavailable) -> JSONResponse:
+        return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"detail": "External identity service is unavailable"},
         )

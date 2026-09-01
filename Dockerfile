@@ -16,7 +16,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN uv sync --frozen \
+RUN uv sync --frozen --no-dev \
     && groupadd --system telescan \
     && useradd --system --gid telescan --home-dir /app telescan \
     && chown -R telescan:telescan /app

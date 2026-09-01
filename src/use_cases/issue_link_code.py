@@ -49,14 +49,32 @@ class IssueLinkCode:
 
         if photo is not None:
             try:
-                photo_url = await self._photos.replace(
-                    getattr(user, "telescan_id"),
-                    photo,
-                    getattr(user, "photo_s3_link", None),
+                old_photo_url = getattr(user, "photo_s3_link", None)
+                photo_url = await self._photos.upload(
+                    getattr(user, "telescan_id"), photo
                 )
-                user = await self._users.update_photo(
-                    str(getattr(user, "id")), photo_url
-                )
+                try:
+                    user = await self._users.update_photo(
+                        str(getattr(user, "id")), photo_url
+                    )
+                except Exception:
+                    try:
+                        await self._photos.delete_by_url(photo_url)
+                    except Exception:
+                        logger.exception(
+                            "Could not remove unreferenced Telegram photo for user %s",
+                            getattr(user, "id", "unknown"),
+                        )
+                    raise
+
+                if old_photo_url and old_photo_url != photo_url:
+                    try:
+                        await self._photos.delete_by_url(old_photo_url)
+                    except Exception:
+                        logger.exception(
+                            "Could not remove obsolete Telegram photo for user %s",
+                            getattr(user, "id", "unknown"),
+                        )
             except Exception:
                 logger.exception(
                     "Could not synchronize Telegram photo for user %s; "

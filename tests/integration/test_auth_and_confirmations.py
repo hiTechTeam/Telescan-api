@@ -28,7 +28,7 @@ from src.use_cases.confirmations import (
     RequestLogoutAll,
 )
 from src.use_cases.issue_link_code import IssueLinkCode
-from src.use_cases.profiles import DeleteAccount, UpdateOwnBio
+from src.use_cases.profiles import DeleteAccount, UpdateOwnBio, UpdateOwnPhoto
 from tests.fakes import (
     FakeAppleIdentities,
     FakeAppleVerifier,
@@ -256,6 +256,76 @@ async def test_issue_removes_photo_absent_from_telegram() -> None:
     assert user.tg_username == "ada_updated"
     assert user.photo_s3_link is None
     assert "https://storage.example/users/old-photo.jpg" in storage.deleted
+
+
+@pytest.mark.asyncio
+async def test_photo_replacement_updates_database_before_deleting_old_object() -> None:
+    users = FakeUsers()
+    user = await users.create_unlinked()
+    old_url = "https://storage.example/users/old-photo.jpg"
+    user.photo_s3_link = old_url
+    storage = FakeStorage()
+    photos = UpdateOwnPhoto(users, PhotoService(storage, 1024))
+
+    updated = await photos.replace(str(user.id), b"\xff\xd8\xffnew-photo")
+
+    assert updated.photo_s3_link != old_url
+    assert old_url in storage.deleted
+    assert updated.photo_s3_link not in storage.deleted
+
+
+@pytest.mark.asyncio
+async def test_photo_replacement_cleans_new_object_when_database_update_fails() -> None:
+    class FailingPhotoUpdateUsers(FakeUsers):
+        async def update_photo(self, user_id, photo_url):
+            raise OSError("database unavailable")
+
+    users = FailingPhotoUpdateUsers()
+    user = await users.create_unlinked()
+    old_url = "https://storage.example/users/old-photo.jpg"
+    user.photo_s3_link = old_url
+    storage = FakeStorage()
+    photos = UpdateOwnPhoto(users, PhotoService(storage, 1024))
+
+    with pytest.raises(OSError, match="database unavailable"):
+        await photos.replace(str(user.id), b"\xff\xd8\xffnew-photo")
+
+    assert user.photo_s3_link == old_url
+    assert old_url not in storage.deleted
+    uploaded_url = next(
+        f"https://storage.example/{object_name}" for object_name in storage.uploaded
+    )
+    assert uploaded_url in storage.deleted
+
+
+@pytest.mark.asyncio
+async def test_photo_deletion_can_retry_storage_cleanup_after_database_update() -> None:
+    class FailingOnceDeleteStorage(FakeStorage):
+        def __init__(self) -> None:
+            super().__init__()
+            self.should_fail = True
+
+        async def delete_by_url(self, public_url):
+            if self.should_fail:
+                self.should_fail = False
+                raise OSError("storage unavailable")
+            await super().delete_by_url(public_url)
+
+    users = FakeUsers()
+    user = await users.create_unlinked()
+    user.photo_s3_link = "https://storage.example/users/photo.jpg"
+    storage = FailingOnceDeleteStorage()
+    photos = UpdateOwnPhoto(users, PhotoService(storage, 1024))
+
+    with pytest.raises(OSError, match="storage unavailable"):
+        await photos.delete(str(user.id))
+
+    assert user.photo_s3_link is None
+
+    updated = await photos.delete(str(user.id))
+
+    assert updated.photo_s3_link is None
+    assert f"users/{user.telescan_id}/" in storage.deleted
 
 
 @pytest.mark.asyncio

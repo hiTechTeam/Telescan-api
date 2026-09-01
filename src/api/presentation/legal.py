@@ -25,7 +25,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "How Telescan processes account, profile, and nearby "
                 "discovery data — and how you stay in control."
             ),
-            effective_date="Effective August 24, 2026",
+            effective_date="Effective September 1, 2026",
             sections=(
                 (
                     "Overview",
@@ -57,6 +57,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<li>Temporary keyed hashes of one-time linking codes</li>"
                     "<li>Telegram or user-selected profile photo</li>"
                     "<li>Optional BIO you add to your Telescan profile</li>"
+                    "<li>Device-local Met and Saved profile snapshots</li>"
                     "<li>Reports, blocks, and moderation records you create</li></ul>",
                 ),
                 (
@@ -72,17 +73,24 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "app may keep its public profile snapshot and last-seen "
                     "time in a device-local Met history. The history contains "
                     "no GPS or distance measurements, is never uploaded, is "
-                    "limited to 500 profiles, and is removed after 24 hours. "
+                    "removed after 24 hours. "
                     "It can be cleared earlier and is also cleared on sign-out "
                     "or account deletion. Blocking removes the profile from "
-                    "this local history.</p>",
+                    "this local history.</p>"
+                    "<p>When you save another profile, the app keeps that "
+                    "public profile snapshot in a Saved list only on the "
+                    "current device. Saved profiles are not uploaded or "
+                    "synchronized between devices. They remain until you "
+                    "remove them, sign out, or delete the account.</p>",
                 ),
                 (
                     "Reports and blocks",
                     "<p>A report stores the reporter and target Telescan IDs, "
-                    "reason, optional comment, a snapshot of the target name, "
+                    "an optional comment, a snapshot of the target name, "
                     "username, BIO and photo URL, review status, timestamps, and "
-                    "moderator audit fields. The target is not shown the "
+                    "moderator audit fields. The current product submits one "
+                    "universal report instead of a user-selected category. "
+                    "The target is not shown the "
                     "reporter's identity.</p><p>A block stores the account "
                     "relationship, target profile snapshot, and creation time. "
                     "It hides profile access in both directions and can be "
@@ -126,7 +134,9 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "remain until you delete the Telescan account. Blocks "
                     "remain until unblocked or account deletion. Pending "
                     "reports remain until a decision; resolved or dismissed "
-                    "reports expire after 180 days.</p>"
+                    "reports expire after 180 days. Device-local Met entries "
+                    "expire after 24 hours; Saved entries remain until you "
+                    "remove them, sign out, or delete the account.</p>"
                     "<p>Service infrastructure may process standard request "
                     "metadata such as IP address, time, host, "
                     "path, response status, and upstream timing for delivery, "
@@ -147,7 +157,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Your choices",
                     "<p>You can disable discoverability, clear the device-local "
-                    "24-hour encounter history, replace or remove your BIO and "
+                    "24-hour encounter history, save or remove public profile "
+                    "snapshots on the current device, replace or remove your BIO and "
                     "profile photo, report or block profiles, manage blocked "
                     "profiles, sign out the current device, or delete "
                     "your account and all its sessions. Depending on applicable law, "
@@ -172,7 +183,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 "Как Telescan обрабатывает данные аккаунта, фотографии и "
                 "поиска людей рядом — и как вы ими управляете."
             ),
-            effective_date="Действует с 24 августа 2026 года",
+            effective_date="Действует с 1 сентября 2026 года",
             sections=(
                 (
                     "Общие положения",
@@ -205,6 +216,7 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "<li>Временные ключевые хеши одноразовых кодов привязки</li>"
                     "<li>Фотография из Telegram или выбранная вами</li>"
                     "<li>Необязательное BIO, добавленное вами в Telescan</li>"
+                    "<li>Локальные снимки профилей в «Виделись» и «Сохранённых»</li>"
                     "<li>Созданные вами жалобы, блокировки и записи модерации</li></ul>",
                 ),
                 (
@@ -220,16 +232,23 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "приложение может сохранить его публичный снимок и время "
                     "последней встречи в локальном разделе «Виделись». История "
                     "не содержит GPS или замеров расстояния, не загружается на "
-                    "сервер, ограничена 500 профилями и удаляется через 24 часа. "
+                    "сервер и удаляется через 24 часа. "
                     "Её можно очистить раньше; она также очищается при выходе "
                     "или удалении аккаунта. Блокировка удаляет профиль из этой "
-                    "локальной истории.</p>",
+                    "локальной истории.</p>"
+                    "<p>Когда вы сохраняете другой профиль, приложение хранит "
+                    "его публичный снимок в разделе «Сохранённые» только на "
+                    "текущем устройстве. Эти профили не загружаются на сервер "
+                    "и не синхронизируются между устройствами. Они остаются до "
+                    "удаления вами, выхода или удаления аккаунта.</p>",
                 ),
                 (
                     "Жалобы и блокировки",
-                    "<p>Жалоба содержит Telescan ID отправителя и цели, причину, "
+                    "<p>Жалоба содержит Telescan ID отправителя и цели, "
                     "необязательный комментарий, снимок имени, username, BIO и URL "
-                    "фотографии цели, статус, время и аудит модератора. Цель не "
+                    "фотографии цели, статус, время и аудит модератора. Текущая "
+                    "версия отправляет одну универсальную жалобу без выбора "
+                    "категории пользователем. Цель не "
                     "видит личность отправителя.</p><p>Блокировка содержит связь "
                     "аккаунтов, снимок профиля цели и время. Она скрывает "
                     "профили в обоих направлениях и может быть отменена в приложении.</p>",
@@ -270,7 +289,10 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                     "он удаляется. Запись аккаунта, BIO и фотографии "
                     "хранятся до удаления аккаунта Telescan. Блокировки "
                     "хранятся до разблокировки или удаления аккаунта. Жалобы "
-                    "до решения, а закрытые жалобы удаляются через 180 дней.</p>"
+                    "до решения, а закрытые жалобы удаляются через 180 дней. "
+                    "Локальные записи «Виделись» удаляются через 24 часа, а "
+                    "«Сохранённые» — при удалении пользователем, выходе или "
+                    "удалении аккаунта.</p>"
                     "<p>Инфраструктура сервиса может обрабатывать стандартные "
                     "данные запросов — IP-адрес, "
                     "время, host, путь, статус ответа и время upstream — для доставки, "
@@ -292,7 +314,8 @@ DOCUMENTS: dict[str, dict[str, LegalDocument]] = {
                 (
                     "Ваш выбор",
                     "<p>Вы можете отключить видимость, очистить локальную "
-                    "24-часовую историю встреч, заменить или удалить BIO и "
+                    "24-часовую историю встреч, сохранять или удалять публичные "
+                    "снимки профилей на текущем устройстве, заменить или удалить BIO и "
                     "фотографию, пожаловаться или заблокировать профиль, "
                     "управлять блокировками, выйти на текущем устройстве или удалить "
                     "аккаунт и все его сессии. "

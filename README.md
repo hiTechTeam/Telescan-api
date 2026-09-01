@@ -197,6 +197,13 @@ either account has blocked the other. The API also owns the
 The iOS **Met** encounter history is not an API collection. It stores resolved
 public profile snapshots and last-seen timestamps only on the current device,
 prunes them after 24 hours, and never uploads BLE signal or distance history.
+The iOS **Saved** list is also device-local, never synchronizes through the API,
+and is cleared with the local account session.
+
+Photo replacement writes the new object, commits its URL to MongoDB, and only
+then removes the obsolete object. A failed database write compensates by
+deleting the new unreferenced object, so the live profile never points to an
+object that was removed before the database update.
 
 Account deletion first revokes all sessions, then removes photos, regular and
 review link codes, confirmation requests, block relationships, device sessions,
@@ -302,6 +309,8 @@ build. A successful push to `main` creates and verifies an encrypted off-host
 database backup, builds the new image while the current API remains available,
 runs the idempotent Apple-auth migration during a short API stop, deploys
 through the production environment, and waits for the readiness health check.
+The workflow preserves the previous image and automatically recreates it when
+migration, startup, or the new readiness check fails.
 Concurrency serializes production deployments so two API releases cannot
 update the host at the same time.
 

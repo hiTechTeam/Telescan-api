@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse
 
 from src.infrastructure.mongodb import database_ready
 
@@ -12,10 +12,10 @@ async def liveness() -> dict[str, str]:
 
 
 @router.get("/health/ready", response_model=None)
-async def readiness() -> dict[str, str] | ORJSONResponse:
+async def readiness() -> dict[str, str] | JSONResponse:
     if await database_ready():
         return {"status": "ok"}
-    return ORJSONResponse(
+    return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"status": "unavailable"},
     )

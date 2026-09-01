@@ -25,18 +25,17 @@ class PhotoService:
                 return content_type, extension
         raise InvalidPhoto("unsupported photo format")
 
-    async def replace(
+    async def upload(
         self,
         telescan_id: UUID,
         data: bytes,
-        old_url: str | None,
     ) -> str:
         content_type, extension = self.validate(data)
         name = f"users/{telescan_id}/{uuid4().hex}.{extension}"
-        new_url = await self._storage.upload(data, name, content_type)
-        if old_url and old_url != new_url:
-            await self._storage.delete_by_url(old_url)
-        return new_url
+        return await self._storage.upload(data, name, content_type)
+
+    async def delete_by_url(self, url: str) -> None:
+        await self._storage.delete_by_url(url)
 
     async def delete_all(self, telescan_id: UUID, current_url: str | None) -> None:
         if current_url:

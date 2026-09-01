@@ -107,20 +107,34 @@ jobs:
           cd /home/ubuntu/telescan/Telescan-api
           test -s .env
           docker compose config --quiet </dev/null
+
+          PREVIOUS_CONTAINER_ID="$(docker compose ps -q telescan-api </dev/null)"
+          test -n "$PREVIOUS_CONTAINER_ID"
+          PREVIOUS_IMAGE_ID="$(docker inspect --format '{{.Image}}' "$PREVIOUS_CONTAINER_ID")"
+          PREVIOUS_IMAGE_REF="$(docker inspect --format '{{.Config.Image}}' "$PREVIOUS_CONTAINER_ID")"
+
           docker compose build telescan-api </dev/null
           docker compose run --rm --no-deps -T telescan-api \
             /app/.venv/bin/python -m scripts.migrate_apple_auth </dev/null
           docker compose run --rm --no-deps -T telescan-api \
             /app/.venv/bin/python -m scripts.migrate_universal_reports </dev/null
 
-          docker compose stop --timeout 30 telescan-api </dev/null
-          migration_complete=false
-          restart_previous_release() {
-            if [ "$migration_complete" != "true" ]; then
-              docker compose start telescan-api </dev/null || true
+          rollback_previous_release() {
+            exit_status=$?
+            if [ "$exit_status" -eq 0 ]; then
+              return
             fi
+            trap - EXIT
+            set +e
+            docker compose stop --timeout 30 telescan-api </dev/null
+            docker tag "$PREVIOUS_IMAGE_ID" "$PREVIOUS_IMAGE_REF"
+            docker compose up -d --no-deps --force-recreate telescan-api </dev/null
+            docker compose ps telescan-api </dev/null
+            exit "$exit_status"
           }
-          trap restart_previous_release EXIT
+          trap rollback_previous_release EXIT
+
+          docker compose stop --timeout 30 telescan-api </dev/null
 
           docker compose run --rm --no-deps -T telescan-api \
             /app/.venv/bin/python -m scripts.migrate_apple_auth \
@@ -128,7 +142,6 @@ jobs:
           docker compose run --rm --no-deps -T telescan-api \
             /app/.venv/bin/python -m scripts.migrate_universal_reports \
             --apply --confirm MIGRATE_UNIVERSAL_REPORTS </dev/null
-          migration_complete=true
 
           docker compose up -d --no-deps telescan-api </dev/null
           CONTAINER_ID="$(docker compose ps -q telescan-api </dev/null)"

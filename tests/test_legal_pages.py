@@ -31,9 +31,13 @@ async def test_privacy_page_is_public_html() -> None:
     assert response.media_type == "text/html"
     assert response.headers["content-language"] == "en"
     assert "Privacy Policy" in body
-    assert "Effective August 24, 2026" in body
+    assert "Effective September 1, 2026" in body
     assert "optional BIO of up to 36 characters" in body
     assert "removed after 24 hours" in body
+    assert "Saved profiles are not uploaded" in body
+    assert "one universal report" in body
+    assert "limited to 500 profiles" not in body
+    assert "reason, optional comment" not in body
     assert "supporting service providers" in body
     assert "WireGuard" not in body
     assert "Account and data deletion" in body
@@ -80,6 +84,9 @@ async def test_accept_language_selects_supported_language() -> None:
     assert response.headers["content-language"] == "ru"
     assert "Политика конфиденциальности" in body
     assert "удаляется через 24 часа" in body
+    assert "не синхронизируются между устройствами" in body
+    assert "универсальную жалобу" in body
+    assert "ограничена 500 профилями" not in body
     assert "Понятно о ваших данных" not in body
 
 
