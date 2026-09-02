@@ -443,7 +443,7 @@ async def test_production_cas_gate_rejects_missing_revision() -> None:
         s3_access_key="s3-access-that-is-explicit",
         s3_secret_key="s3-secret-that-is-explicit-and-long",
         s3_public_base_url=(
-            "https://profile-photos-telescan.s3.ru-7.storage.selcloud.ru"
+            "https://b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru"
         ),
         cors_origins=[],
         require_moderation_revision=True,

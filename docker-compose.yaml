@@ -13,6 +13,7 @@ services:
       - .env
     environment:
       ENABLE_TELEGRAM_FIRST_AUTH: "true"
+      S3_PUBLIC_BASE_URL: "https://b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru"
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777

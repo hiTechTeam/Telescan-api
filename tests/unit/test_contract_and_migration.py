@@ -193,7 +193,7 @@ def _production_settings(**overrides) -> Settings:
         "s3_access_key": "s3-access-that-is-explicit",
         "s3_secret_key": "s3-secret-that-is-explicit-and-long",
         "s3_public_base_url": (
-            "https://profile-photos-telescan.s3.ru-7.storage.selcloud.ru"
+            "https://b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru"
         ),
         "require_moderation_revision": True,
     }
@@ -232,7 +232,7 @@ def test_production_rejects_legacy_api_even_with_old_risk_flag() -> None:
         ("s3_public_base_url", "https://evil.example"),
         (
             "s3_public_base_url",
-            "https://profile-photos-telescan.s3.ru-7.storage.selcloud.ru/foreign",
+            "https://b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru/foreign",
         ),
         (
             "s3_public_base_url",

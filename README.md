@@ -334,7 +334,7 @@ MongoDB must be `mongo:27017` on the private network and use a non-system
 database with a strong least-privilege application credential. S3 is fixed to
 `https://s3.ru-7.storage.selcloud.ru`, bucket `profile-photos-telescan`, and the
 host-style public base
-`https://profile-photos-telescan.s3.ru-7.storage.selcloud.ru` with no path,
+`https://b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru` with no path,
 query, or fragment. Keep
 `BOT_SERVICE_SECRET` and the separate `MODERATION_SERVICE_SECRET` private and
 block `/internal/` at every public proxy.

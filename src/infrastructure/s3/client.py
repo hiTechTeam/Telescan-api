@@ -43,7 +43,6 @@ class S3PhotoStorage:
                 Key=object_name,
                 Body=data,
                 ContentType=content_type,
-                ACL="public-read",
             )
         return f"{self._public_base_url}/{object_name}"
 
@@ -56,7 +55,6 @@ class S3PhotoStorage:
                 Bucket=self._bucket_name,
                 Key=object_name,
                 CopySource={"Bucket": self._bucket_name, "Key": source_name},
-                ACL="public-read",
                 MetadataDirective="COPY",
             )
         return f"{self._public_base_url}/{object_name}"

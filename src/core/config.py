@@ -204,7 +204,7 @@ class Settings(BaseSettings):
             raise ValueError("Production S3 bucket is not approved")
         public_base = urlsplit(self.s3_public_base_url)
         if (
-            public_base.hostname != f"{self.s3_bucket_name}.{endpoint_host}"
+            public_base.hostname != "b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru"
             or public_base.port not in {None, 443}
             or public_base.path not in {"", "/"}
             or public_base.query

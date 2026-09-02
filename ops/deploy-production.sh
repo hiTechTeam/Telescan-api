@@ -275,11 +275,15 @@ run_migrations() {
         scripts.migrate_account_operation_journals)
           apply_args=(--apply --confirm MIGRATE_ACCOUNT_OPERATION_JOURNALS)
           ;;
+        scripts.migrate_photo_public_urls)
+          apply_args=(--apply)
+          ;;
       esac
     fi
     docker run --rm --network telescan_network \
       --env-file "$active_dir/.env" \
       --env ENABLE_TELEGRAM_FIRST_AUTH=true \
+      --env S3_PUBLIC_BASE_URL=https://b16a45ef-34c8-400e-8e9f-c71d081ad546.selstorage.ru \
       "$image_ref" /app/.venv/bin/python "${command[@]}" "${apply_args[@]}" \
       </dev/null
   done <<'MIGRATIONS'
@@ -289,6 +293,7 @@ run_migrations() {
 -m scripts.migrate_link_code_invariants
 -m scripts.migrate_moderation_integrity
 -m scripts.migrate_account_operation_journals
+-m scripts.migrate_photo_public_urls
 MIGRATIONS
   # Destructive users.code removal is intentionally absent. It is dispatched
   # only by the separately confirmed post-rollback-window workflow.
