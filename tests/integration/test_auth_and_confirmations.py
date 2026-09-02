@@ -20,6 +20,7 @@ from src.domain.errors import (
     ConfirmationNotFound,
     InvalidToken,
     InvalidLinkCode,
+    PublicContentRejected,
     SessionRevoked,
     TelegramIdentityConflict,
     TelegramUsernameRequired,
@@ -214,6 +215,29 @@ async def test_bio_is_trimmed_and_can_be_removed() -> None:
 
     cleared = await update.execute(str(user.id), "   ")
     assert cleared.bio is None
+
+
+@pytest.mark.asyncio
+async def test_objectionable_bio_is_rejected_without_changing_profile() -> None:
+    users = FakeUsers()
+    user = await users.upsert_telegram_profile(10, "Ada", "ada")
+    await users.update_bio(str(user.id), "Original profile")
+
+    with pytest.raises(PublicContentRejected):
+        await UpdateOwnBio(users).execute(str(user.id), "P.O.R.N")
+
+    assert user.bio == "Original profile"
+
+
+@pytest.mark.asyncio
+async def test_objectionable_telegram_profile_is_rejected_before_creation() -> None:
+    flow = build_auth_flow()
+
+    with pytest.raises(PublicContentRejected):
+        await flow.issue.execute(10, "P.O.R.N", "ada", None)
+
+    assert not flow.users.users
+    assert not flow.codes.items
 
 
 @pytest.mark.asyncio

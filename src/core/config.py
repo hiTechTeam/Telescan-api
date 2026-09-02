@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     internal_request_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     maintenance_interval_seconds: int = Field(default=60, ge=10, le=3600)
     cors_origins: list[str] = Field(default_factory=list)
+    public_text_extra_blocked_terms: list[str] = Field(default_factory=list)
     enable_telegram_first_auth: bool = False
     enable_legacy_api: bool = False
     legacy_api_expires_at: datetime | None = None

@@ -24,6 +24,7 @@ from src.domain.errors import (
     InvalidToken,
     ModerationConflict,
     ModerationItemNotFound,
+    PublicContentRejected,
     RateLimitExceeded,
     RefreshTokenReused,
     SessionRevoked,
@@ -164,6 +165,18 @@ def create_app(
             content={
                 "detail": "Public Telegram username is required",
                 "code": "telegram_username_required",
+            },
+        )
+
+    @application.exception_handler(PublicContentRejected)
+    async def public_content_rejected(
+        _: Request, __: PublicContentRejected
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content={
+                "detail": "Public profile text violates content policy",
+                "code": "public_content_rejected",
             },
         )
 

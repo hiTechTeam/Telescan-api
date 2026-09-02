@@ -29,6 +29,7 @@ from src.services import (
     LegacyCodePublisher,
     LinkCodeService,
     PhotoService,
+    PublicTextPolicy,
     ReportEvidenceService,
     SessionService,
 )
@@ -137,6 +138,7 @@ def build_container(settings: Settings) -> Container:
         settings.s3_bucket_name,
     )
     photos = PhotoService(storage, settings.max_photo_bytes)
+    public_text = PublicTextPolicy(settings.public_text_extra_blocked_terms)
     account_operation_fences = AccountOperationFenceRepository()
     account_operation_intents = (
         FileAccountOperationIntentStore()
@@ -199,6 +201,7 @@ def build_container(settings: Settings) -> Container:
                 production=settings.environment.lower() == "production",
             ),
             account_operation_guard,
+            public_text,
         ),
         sign_in_with_apple=SignInWithApple(
             users,
@@ -257,7 +260,7 @@ def build_container(settings: Settings) -> Container:
             blocks,
             None if settings.telegram_first_auth_active else apple_identities,
         ),
-        update_own_bio=UpdateOwnBio(users, account_operation_guard),
+        update_own_bio=UpdateOwnBio(users, account_operation_guard, public_text),
         update_own_photo=update_own_photo,
         delete_account=delete_account,
         submit_report=SubmitReport(

@@ -14,6 +14,10 @@ class TelegramUsernameRequired(TelescanError):
     """A public Telegram username is required for Telescan discovery."""
 
 
+class PublicContentRejected(TelescanError):
+    """Public profile text violates the server-side content policy."""
+
+
 class InvalidAppleCredential(TelescanError):
     """The Sign in with Apple credential could not be verified."""
 

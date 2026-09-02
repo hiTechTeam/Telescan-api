@@ -160,6 +160,12 @@ Code issuance requires a non-empty public Telegram username. Requests without
 one are rejected with `422` and `code=telegram_username_required`; no profile or
 link code is created.
 
+Public Telegram names/usernames and profile descriptions pass through the same
+server-side text policy before they are stored. Rejected input returns `422`
+with `code=public_content_rejected`. The narrow built-in baseline can be
+extended operationally with `PUBLIC_TEXT_EXTRA_BLOCKED_TERMS` as a JSON array;
+rejected text is never echoed by the API.
+
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/internal/v1/link-codes` | Upsert Telegram profile data and issue a link code |

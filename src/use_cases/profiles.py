@@ -10,6 +10,7 @@ from src.domain.ports import (
 from src.services.account_deletions import AccountDeletionService
 from src.services.account_operations import AccountOperationGuard
 from src.services.photos import PhotoService
+from src.services.public_text import PublicTextPolicy
 
 
 logger = logging.getLogger(__name__)
@@ -60,12 +61,15 @@ class UpdateOwnBio:
         self,
         users: UserRepositoryPort,
         account_operations: AccountOperationGuard | None = None,
+        public_text: PublicTextPolicy | None = None,
     ) -> None:
         self._users = users
         self._account_operations = account_operations
+        self._public_text = public_text or PublicTextPolicy()
 
     async def execute(self, user_id: str, bio: str | None) -> object:
         normalized = " ".join(bio.split()) if bio is not None else None
+        self._public_text.require_allowed(normalized)
         if self._account_operations is None:
             user = await self._users.get_by_id(user_id)
             if user is None:
