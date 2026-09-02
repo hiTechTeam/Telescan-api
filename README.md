@@ -109,7 +109,7 @@ them only from the production host:
 docker compose exec telescan-api /app/.venv/bin/python -m scripts.review_codes issue \
   --telescan-id REVIEW_PROFILE_ID \
   --count 10 \
-  --valid-days 30 \
+  --valid-days 90 \
   --issued-by OPERATOR \
   --apply \
   --confirm ISSUE_REVIEW_CODES

@@ -1,3 +1,4 @@
+import argparse
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
@@ -5,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from scripts.review_codes import (
+    _valid_days,
     batch_status,
     issue_review_codes,
     revoke_review_codes,
@@ -12,6 +14,13 @@ from scripts.review_codes import (
 from src.core.config import Settings
 from src.domain.enums import LinkCodeStatus
 from src.services.codes import LinkCodeService
+
+
+def test_review_code_validity_accepts_three_month_window() -> None:
+    assert _valid_days("90") == 90
+
+    with pytest.raises(argparse.ArgumentTypeError, match="between 1 and 90"):
+        _valid_days("91")
 
 
 class FakeUsersCollection:

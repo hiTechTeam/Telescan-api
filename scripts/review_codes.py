@@ -22,6 +22,7 @@ from src.services.codes import LinkCodeService
 ISSUE_CONFIRMATION = "ISSUE_REVIEW_CODES"
 AUDIT_RETENTION_DAYS = 90
 MAX_GENERATION_ATTEMPTS = 100
+MAX_VALID_DAYS = 90
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +48,7 @@ def _count(value: str) -> int:
 
 
 def _valid_days(value: str) -> int:
-    return _bounded_int(value, 1, 60)
+    return _bounded_int(value, 1, MAX_VALID_DAYS)
 
 
 def parse_args() -> argparse.Namespace:
