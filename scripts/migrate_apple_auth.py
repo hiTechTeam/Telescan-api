@@ -121,7 +121,7 @@ def main() -> None:
             database["apple_identities"],
             database["device_sessions"],
             args.apply,
-            revoke_legacy_sessions=not settings.legacy_api_active,
+            revoke_legacy_sessions=not settings.telegram_first_auth_active,
         )
         mode = "APPLY" if args.apply else "DRY-RUN"
         print(f"{mode}: {report}")

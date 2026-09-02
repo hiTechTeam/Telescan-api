@@ -63,12 +63,13 @@ async def _resolve_current_auth(
         raise InvalidToken()
     identity = await container.apple_identities.get_by_user_id(resolved_user_id)
     settings = getattr(container, "settings", None)
-    legacy_enabled = getattr(
+    telegram_first_auth_enabled = getattr(
         settings,
-        "legacy_api_active",
-        getattr(settings, "enable_legacy_api", False),
+        "telegram_first_auth_active",
+        getattr(settings, "enable_telegram_first_auth", False)
+        or getattr(settings, "enable_legacy_api", False),
     )
     merge_in_progress = merge is not None and resolved_user_id == user_id
-    if identity is None and not legacy_enabled and not merge_in_progress:
+    if identity is None and not telegram_first_auth_enabled and not merge_in_progress:
         raise InvalidToken()
     return AuthContext(user_id=resolved_user_id, session_id=session_id)

@@ -11,6 +11,8 @@ services:
       - '127.0.0.1:8000:8000'
     env_file:
       - .env
+    environment:
+      ENABLE_TELEGRAM_FIRST_AUTH: "true"
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777

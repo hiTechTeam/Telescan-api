@@ -171,6 +171,13 @@ def test_legacy_api_automatically_expires() -> None:
     assert expired.legacy_api_active is False
 
 
+def test_telegram_first_auth_does_not_enable_legacy_routes() -> None:
+    settings = Settings(enable_telegram_first_auth=True)
+
+    assert settings.telegram_first_auth_active is True
+    assert settings.legacy_api_active is False
+
+
 def _production_settings(**overrides) -> Settings:
     values = {
         "environment": "production",
@@ -198,6 +205,13 @@ def test_production_allows_native_only_empty_cors() -> None:
     settings = _production_settings(cors_origins=[])
 
     assert settings.cors_origins == []
+
+
+def test_production_allows_scoped_telegram_first_auth() -> None:
+    settings = _production_settings(enable_telegram_first_auth=True)
+
+    assert settings.telegram_first_auth_active is True
+    assert settings.legacy_api_active is False
 
 
 def test_production_rejects_legacy_api_even_with_old_risk_flag() -> None:

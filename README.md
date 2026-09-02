@@ -179,6 +179,11 @@ protected by
 | `GET` | `/internal/v1/moderation/reports/{id}` | Read a report and its captured profile snapshot |
 | `PATCH` | `/internal/v1/moderation/reports/{id}` | Record review state, moderator actor, and note |
 
+The modern `POST /api/v1/auth/link` flow accepts short-lived, one-time HMAC
+codes issued by the bot. Production enables this scoped Telegram-first flow for
+Personal Team builds; it does not expose the legacy API or publish legacy code
+hashes.
+
 Legacy `/v1` routes are hidden from OpenAPI. They may be enabled only in a
 non-production development environment with `ENABLE_LEGACY_API=true` and a
 future timezone-aware `LEGACY_API_EXPIRES_AT`; production rejects the flag
@@ -238,9 +243,11 @@ remaining window in `Retry-After`.
 
 ## Migration from the legacy model
 
-`ENABLE_LEGACY_API=true` is a development-only escape hatch for Personal Team
-Debug builds that cannot carry the Sign in with Apple entitlement. Production
-startup always rejects it. Set `LEGACY_API_EXPIRES_AT` to a timezone-aware ISO
+`ENABLE_TELEGRAM_FIRST_AUTH=true` enables the modern one-time bot-code flow used
+by Personal Team builds that cannot carry the Sign in with Apple entitlement.
+This flag does not enable any `/v1` route. `ENABLE_LEGACY_API=true` remains a
+development-only escape hatch; production startup always rejects it. Set
+`LEGACY_API_EXPIRES_AT` to a timezone-aware ISO
 8601 timestamp even in development; after that instant the compatibility path
 stops working without a restart.
 

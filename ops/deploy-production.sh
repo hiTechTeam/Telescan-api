@@ -279,6 +279,7 @@ run_migrations() {
     fi
     docker run --rm --network telescan_network \
       --env-file "$active_dir/.env" \
+      --env ENABLE_TELEGRAM_FIRST_AUTH=true \
       "$image_ref" /app/.venv/bin/python "${command[@]}" "${apply_args[@]}" \
       </dev/null
   done <<'MIGRATIONS'

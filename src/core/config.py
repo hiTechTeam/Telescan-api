@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     internal_request_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     maintenance_interval_seconds: int = Field(default=60, ge=10, le=3600)
     cors_origins: list[str] = Field(default_factory=list)
+    enable_telegram_first_auth: bool = False
     enable_legacy_api: bool = False
     legacy_api_expires_at: datetime | None = None
     production_legacy_risk_accepted: bool = False
@@ -94,6 +95,11 @@ class Settings(BaseSettings):
         if expires_at.tzinfo is None:
             return False
         return expires_at.astimezone(UTC) > datetime.now(UTC)
+
+    @property
+    def telegram_first_auth_active(self) -> bool:
+        """Allow modern one-time bot codes without exposing legacy /v1 routes."""
+        return self.enable_telegram_first_auth or self.legacy_api_active
 
     @model_validator(mode="after")
     def reject_development_secrets_in_production(self) -> "Settings":

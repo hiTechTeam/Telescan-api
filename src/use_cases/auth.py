@@ -25,7 +25,7 @@ from src.services.sessions import SessionService
 
 
 class LinkDevice:
-    """Temporary Telegram-first authentication behind ENABLE_LEGACY_API."""
+    """Telegram-first authentication through a one-time HMAC link code."""
 
     def __init__(
         self,

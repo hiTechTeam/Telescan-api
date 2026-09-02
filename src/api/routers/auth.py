@@ -44,12 +44,12 @@ def _profile(user: object) -> ProfileResponse:
 
 
 @router.post("/link", response_model=LinkedAccountResponse)
-async def link_device_for_development(
+async def link_device_with_telegram_code(
     request: Request,
     payload: LinkRequest,
     container: Annotated[Container, Depends(get_container)],
 ) -> LinkedAccountResponse:
-    if not container.settings.legacy_api_active:
+    if not container.settings.telegram_first_auth_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     await container.rate_limiter.check(
         f"auth-link:ip:{request_client_ip(request)}", limit=30, window_seconds=300

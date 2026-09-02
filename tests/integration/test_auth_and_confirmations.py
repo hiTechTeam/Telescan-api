@@ -734,7 +734,7 @@ async def test_legacy_telegram_session_is_not_accepted_as_primary_auth() -> None
 
 
 @pytest.mark.asyncio
-async def test_temporary_legacy_auth_is_accepted_only_when_enabled() -> None:
+async def test_telegram_first_auth_is_accepted_only_when_enabled() -> None:
     flow = build_auth_flow()
     now = datetime.now(UTC)
     issued = await flow.issue.execute(10, "Ada", "ada", None, now)
@@ -744,7 +744,7 @@ async def test_temporary_legacy_auth_is_accepted_only_when_enabled() -> None:
         sessions=flow.sessions,
         users=flow.users,
         apple_identities=flow.identities,
-        settings=SimpleNamespace(enable_legacy_api=True),
+        settings=SimpleNamespace(enable_telegram_first_auth=True),
     )
     credentials = HTTPAuthorizationCredentials(
         scheme="Bearer", credentials=tokens.access_token

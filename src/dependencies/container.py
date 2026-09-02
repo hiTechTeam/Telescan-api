@@ -255,7 +255,7 @@ def build_container(settings: Settings) -> Container:
         get_public_profile=GetPublicProfile(
             users,
             blocks,
-            None if settings.legacy_api_active else apple_identities,
+            None if settings.telegram_first_auth_active else apple_identities,
         ),
         update_own_bio=UpdateOwnBio(users, account_operation_guard),
         update_own_photo=update_own_photo,
