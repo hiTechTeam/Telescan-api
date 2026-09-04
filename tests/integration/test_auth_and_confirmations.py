@@ -18,6 +18,7 @@ from src.domain.enums import (
 )
 from src.domain.errors import (
     ConfirmationNotFound,
+    InvalidPhoto,
     InvalidToken,
     InvalidLinkCode,
     PublicContentRejected,
@@ -37,6 +38,7 @@ from src.use_cases.confirmations import (
 )
 from src.use_cases.issue_link_code import IssueLinkCode
 from src.use_cases.profiles import DeleteAccount, UpdateOwnBio, UpdateOwnPhoto
+from src.use_cases.sync_telegram_photo import SyncTelegramPhoto
 from tests.fakes import (
     FakeAccountDeletionService,
     FakeAccountMergeService,
@@ -334,6 +336,33 @@ async def test_issue_removes_photo_absent_from_telegram() -> None:
     assert user.tg_username == "ada_updated"
     assert user.photo_s3_link is None
     assert "https://storage.example/users/old-photo.jpg" in storage.deleted
+
+
+@pytest.mark.asyncio
+async def test_telegram_photo_sync_updates_existing_user_without_issuing_code() -> None:
+    users = FakeUsers()
+    storage = FakeStorage()
+    user = await users.upsert_telegram_profile(10, "Ada", "ada")
+    service = SyncTelegramPhoto(users, PhotoService(storage, 1024))
+
+    await service.execute(
+        10,
+        b"\xff\xd8\xffsmall-photo",
+        TelegramPhotoState.PRESENT,
+    )
+
+    assert user.photo_s3_link is not None
+    assert user.photo_s3_link.startswith("https://storage.example/users/")
+
+
+@pytest.mark.asyncio
+async def test_telegram_photo_sync_rejects_missing_present_photo() -> None:
+    users = FakeUsers()
+    await users.upsert_telegram_profile(10, "Ada", "ada")
+    service = SyncTelegramPhoto(users, PhotoService(FakeStorage(), 1024))
+
+    with pytest.raises(InvalidPhoto, match="photo is required"):
+        await service.execute(10, None, TelegramPhotoState.PRESENT)
 
 
 @pytest.mark.asyncio

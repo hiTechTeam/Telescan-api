@@ -52,6 +52,7 @@ from src.use_cases.confirmations import (
     RequestLogoutAll,
 )
 from src.use_cases.issue_link_code import IssueLinkCode
+from src.use_cases.sync_telegram_photo import SyncTelegramPhoto
 from src.use_cases.legacy import LegacyCompatibility
 from src.use_cases.moderation import (
     BlockUser,
@@ -87,6 +88,7 @@ class Container:
     tokens: TokenService
     rate_limiter: RateLimiter
     issue_link_code: IssueLinkCode
+    sync_telegram_photo: SyncTelegramPhoto
     sign_in_with_apple: SignInWithApple
     link_device: LinkDevice
     link_telegram: LinkTelegramAccount
@@ -202,6 +204,11 @@ def build_container(settings: Settings) -> Container:
             ),
             account_operation_guard,
             public_text,
+        ),
+        sync_telegram_photo=SyncTelegramPhoto(
+            users,
+            photos,
+            account_operation_guard,
         ),
         sign_in_with_apple=SignInWithApple(
             users,

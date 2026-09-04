@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Response, UploadFile, status
 
 from src.dependencies.container import Container, get_container
 from src.dependencies.internal import require_internal_service
@@ -48,6 +48,26 @@ async def issue_link_code(
         expires_at=result.expires_at,
         telescan_id=result.telescan_id,
     )
+
+
+@router.put(
+    "/telegram-profiles/{tg_id}/photo",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def sync_telegram_photo(
+    tg_id: int,
+    container: Annotated[Container, Depends(get_container)],
+    photo: Annotated[UploadFile | None, File()] = None,
+    photo_state: Annotated[TelegramPhotoState, Form()] = TelegramPhotoState.UNCHANGED,
+) -> Response:
+    await container.rate_limiter.check(
+        f"sync-telegram-photo:{tg_id}", limit=12, window_seconds=300
+    )
+    photo_data = (
+        await photo.read(container.settings.max_photo_bytes + 1) if photo else None
+    )
+    await container.sync_telegram_photo.execute(tg_id, photo_data, photo_state)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.put(
