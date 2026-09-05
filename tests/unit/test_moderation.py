@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from scripts.evidence_worker_gate import disable, enable, marker_is_safe
+from src.api.routers.internal_moderation import _report
 from src.core.config import Settings
 from src.domain.enums import ReportPhotoEvidenceStatus, ReportReason, ReportStatus
 from src.domain.errors import (
@@ -326,6 +327,9 @@ async def test_internal_report_review_flow_records_actor_and_note() -> None:
     assert updated.resolved_at is not None
     assert updated.retention_until > updated.resolved_at
     assert await GetReport(reports).execute(item.public_id) is updated
+    response = _report(updated)
+    assert response.moderation_history[-1].moderator_id == "telegram:12345"
+    assert response.moderation_history[-1].to_status == ReportStatus.RESOLVED
 
     with pytest.raises(InvalidModerationAction):
         await UpdateReportStatus(reports).execute(

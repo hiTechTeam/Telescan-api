@@ -67,7 +67,7 @@ class ModerationEventResponse(BaseModel):
     note: str | None = None
     note_changed: Annotated[bool, Field(alias="noteChanged")] = False
     created_at: Annotated[datetime, Field(alias="createdAt")]
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
 
 class ModerationDecisionRequest(BaseModel):
